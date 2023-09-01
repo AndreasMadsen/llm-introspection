@@ -1,0 +1,3 @@
+[submodule "tgi"]
+	path = tgi
+	url = https://github.com/chandar-lab/tgi-for-mila
