@@ -16,10 +16,10 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
             self._model.generate_text([
                 {
                     'user': (
-                        'Can you determine the sentiment of the following sentence.'
+                        'Can you determine the sentiment of the following paragraph.'
                         ' Answer only "yes" or "no".'
                         ' Do not explain your answer.\n\n' +
-                        f'Sentence: {observation["text"]}'
+                        f'Paragraph: {observation["text"]}'
                     ),
                     'assistant': None
                 }
@@ -30,7 +30,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
                         'What is the sentiment of the following paragraph.'
                         ' Answer only "positive", "negative", or "unknown".'
                         ' Do not explain your answer.\n\n'
-                        f'Sentence: {observation["text"]}'
+                        f'Paragraph: {observation["text"]}'
                     ),
                     'assistant': None
                 }

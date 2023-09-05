@@ -63,6 +63,10 @@ class AbstractDatabase(Generic[ObservationType], metaclass=ABCMeta):
         await self._schedule_commit()
 
     async def open(self):
+        """Open connection and create databases
+
+        Likely this should not be used directly. Instead, use `async with`.
+        """
         self._con = await sql.connect(self._filepath)
         await self._con.execute(self._setup_sql)
         await self._ensure_commit()
