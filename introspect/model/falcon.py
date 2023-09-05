@@ -27,11 +27,9 @@ class FalconModel(AbstractModel):
         " begins."
     )
 
-    def render_prompt(self, history):
-        if len(history) < 1:
-            raise ValueError('history must have at least one message pair')
-
+    def _render_prompt(self, history):
         prompt = ''
+
         if self._system_message is not None:
             prompt += f'{self._system_message}\n'
 

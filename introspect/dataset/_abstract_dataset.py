@@ -24,7 +24,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
     _split_test: str
 
     def __init__(self, persistent_dir: pathlib.Path):
-        """Abstract Base Class for defining a dataset with standard train/valid/test semantics.
+        """Class describing the semantics of a dataset.
 
         Args:
             persistent_dir (pathlib.Path): Persistent directory, used for storing the dataset.

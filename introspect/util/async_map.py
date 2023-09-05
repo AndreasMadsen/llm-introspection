@@ -12,6 +12,19 @@ class AsyncMapIterable(AsyncIterable[YieldOutType]):
                  worker: Callable[[YieldInType], Coroutine[Any, Any, YieldOutType]],
                  queue: Iterable[YieldInType],
                  max_tasks: int=8) -> None:
+        """Maps over the queue using the async worker. It runs `max_tasks` workers in parallel.
+
+        Example:
+        async for delay in AsyncMap(asyncio.sleep, range(10)):
+            print(delay)
+
+        Args:
+            worker (Callable[[YieldInType], Awaitable[YieldOutType]): An async map function,
+                this maps from YieldInType to YieldOutType
+            queue (Iterable[YieldInType]): An regular iterable which describes the jobs.
+            max_tasks (int, optional): The maximum number of async workers to run in parallel.
+                Defaults to 8.
+        """
         self._queue = queue
         self._worker = worker
         self._max_tasks = max_tasks

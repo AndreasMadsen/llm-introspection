@@ -50,11 +50,45 @@ class AbstractModel(metaclass=ABCMeta):
     def config(self) -> GenerateConfig:
         return self._config
 
-    @abstractmethod
     def render_prompt(self, history: ChatHistory) -> str:
+        """Converts a chat-history to a prompt string
+
+        Example:
+        render_prompt([
+            { 'user': 'What is 1 + 1?', 'assistant': None }
+        ])
+
+        Args:
+            history (ChatHistory): A structured history. For all message-pairs
+                `user` and `assistant` must be provided. For the final message
+                `assistant` can be either None, or a partial assistant message.
+
+        Returns:
+            str: The prompt
+        """
+        if len(history) < 1:
+            raise ValueError('history must have at least one message pair')
+
+        return self._render_prompt(history)
+
+    @abstractmethod
+    def _render_prompt(self, history: ChatHistory) -> str:
         ...
 
     async def generate_text(self, history: ChatHistory) -> str:
+        """Run inference, using the prompt generated from the message history.
+
+        Args:
+            history (ChatHistory): A structured history. See `help(self.render_prompt)`
+                for details.
+
+        Raises:
+            RuntimeError: If a `client` was not provided to the constructor,
+                an error is raied.
+
+        Returns:
+            str: Model response. Leading and trailing space is removed.
+        """
         if self._client is None:
             raise RuntimeError('no client was specified in the model constructor, can not generate')
 

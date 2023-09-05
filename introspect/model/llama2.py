@@ -25,10 +25,7 @@ class Llama2Model(AbstractModel):
         " a question, please don't share false information."
     )
 
-    def render_prompt(self, history):
-        if len(history) < 1:
-            raise ValueError('history must have at least one message pair')
-
+    def _render_prompt(self, history):
         prompt = ''
 
         for message_i, message_pair in enumerate(history):
