@@ -6,11 +6,12 @@ import json
 import os
 import signal
 from timeit import default_timer as timer
+from pprint import pprint
 
 from tqdm.asyncio import tarange
 from asyncstdlib import zip as azip
 
-from introspect.client import TGIClient
+from introspect.client import clients
 from introspect.dataset import datasets
 from introspect.model import models
 from introspect.tasks import tasks
@@ -71,7 +72,7 @@ parser.add_argument('--split',
                     help='The dataset split to evaluate on')
 parser.add_argument('--num-tasks',
                     action='store',
-                    default=20,
+                    default=100,
                     type=int,
                     help='Max number of parallel async tasks')
 parser.add_argument('--debug',
@@ -97,6 +98,7 @@ async def main():
     # connect to inference server
     print('Answerable experiment:')
     print(f' - Endpoint: {args.endpoint}')
+    print(f' - Client: {args.client}')
     print(f' - Number of tasks: {args.num_tasks}')
     print('')
     print(f' - Model name: {args.model_name}')
@@ -130,6 +132,7 @@ async def main():
     print('Waiting for connection ...')
     await client.connect()
     print('Connection established')
+    pprint(await client.info())
 
     # Set the signal handler
     cancel_eventloop_on_signal(signal.SIGTERM)

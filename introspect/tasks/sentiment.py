@@ -4,14 +4,12 @@ import asyncio
 from ._abstract_tasks import AbstractTasks
 from ..dataset import SentimentDataset
 
-from ..types import DatasetCategories, SentimentObservation
+from ..types import DatasetCategories, SentimentObservation, AnswerableResult
 
 class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
     _category = DatasetCategories.SENTIMENT
 
-    async def answerable(self, observation):
-        # TODO: Include possible answers in the yes/no query.
-        # TODO: Cache these responses.
+    async def answerable(self, observation) -> AnswerableResult:
         answer_ability, answer_sentiment = await asyncio.gather(
             self._model.generate_text([
                 {

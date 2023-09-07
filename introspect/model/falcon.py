@@ -9,9 +9,8 @@ class FalconModel(AbstractModel):
         "top_p": 0.95,
         "repetition_penalty": 1.2,
         "top_k": 50,
-        "truncate": 1000,
         "max_new_tokens": 1024,
-        "stop_sequences": ["User:", "Falcon:"],
+        "stop": ["User:", "Falcon:"],
         "seed": 0
     }
     _default_system_message = (
