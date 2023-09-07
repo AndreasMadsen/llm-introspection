@@ -9,9 +9,8 @@ class Llama2Model(AbstractModel):
         "top_p": 0.95,
         "repetition_penalty": 1.2,
         "top_k": 50,
-        "truncate": 1000,
         "max_new_tokens": 1024,
-        "stop_sequences": ["[INST]", "[/INST]", "<s>", "</s>"],
+        "stop": ["[INST]", "[/INST]", "<s>", "</s>"],
         "seed": 0
     }
     _default_system_message = (

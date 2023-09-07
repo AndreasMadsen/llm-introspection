@@ -97,7 +97,6 @@ class AbstractModel(metaclass=ABCMeta):
 
         if self._debug:
             print(f'PROMPT: 「{prompt}」')
-            print(f'ANSWER: 「{answer.generated_text}」')
-            print(f'PERPLEXITY: {sum(token.logprob for token in answer.details.tokens)}')
+            print(f'ANSWER: 「{answer["text"]}」')
 
-        return answer.generated_text.strip()
+        return answer['text'].strip()
