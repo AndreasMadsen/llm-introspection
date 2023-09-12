@@ -174,7 +174,6 @@ async def main():
         durations[f'eval_{args.split}'] = timer() - train_time_start
 
     # save results
-
     with open((args.persistent_dir / 'results' / 'answerable' / experiment_id).with_suffix('.json'), 'w') as fp:
         json.dump({
             'args': { name: value for name, value in vars(args).items() if name != 'persistent_dir' },

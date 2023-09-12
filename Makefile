@@ -18,3 +18,8 @@ upload-code-mila:
 	rsync --info=progress2 -urltv --delete \
 		--filter=':- .gitignore' --exclude='.git/' \
 		-e ssh ./ mila:~/workspace/introspect
+
+download-database-mila:
+	rsync --info=progress2 -urltv --delete \
+		--filter=':- .gitignore' --exclude='.git/' \
+		-e ssh mila:~/scratch/introspect/database/ ./database
