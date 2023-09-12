@@ -1,9 +1,10 @@
 
-from ..types import DatasetSplits, SystemMessage
+from typing import Optional
 
 def generate_experiment_id(name: str,
-                           model: str|None = None, system_message: SystemMessage|None = None,
-                           dataset: str|None = None, split: DatasetSplits|None = None):
+                           model: Optional[str] = None, system_message: Optional[str] = None,
+                           dataset: Optional[str] = None, split: Optional[str] = None,
+                           seed: Optional[int] = None):
     """Creates a standardized experiment name.
 
     The format is
@@ -13,20 +14,23 @@ def generate_experiment_id(name: str,
     Args:
         name (str): the name of the experiment.
         model (str, optional): the name of the model.
-        system_message (SystemMessage, optional): the system message mode.
+        system_message (str, optional): the system message mode.
         dataset (str, optional): the name of the dataset.
-        split (DatasetSplits, optional): the dataset split.
+        split (str, optional): the dataset split.
+        seed (int, optional): the generation seed.
     Returns:
         str: the experiment identifier
     """
-    experiment_id = f"{name.lower()}"
+    experiment_id = f"{name}"
     if isinstance(model, str):
-        experiment_id += f"_m-{model.lower()}"
-    if isinstance(system_message, SystemMessage):
-        experiment_id += f"_s-{str(system_message).lower()}"
+        experiment_id += f"_m-{model}"
+    if isinstance(system_message, str):
+        experiment_id += f"_y-{system_message}"
     if isinstance(dataset, str):
-        experiment_id += f"_d-{dataset.lower()}"
-    if isinstance(split, DatasetSplits):
-        experiment_id += f"_p-{str(split).lower()}"
+        experiment_id += f"_d-{dataset}"
+    if isinstance(split, str):
+        experiment_id += f"_p-{split}"
+    if isinstance(seed, int):
+        experiment_id += f"_s-{seed}"
 
-    return experiment_id
+    return experiment_id.lower()
