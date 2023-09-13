@@ -3,8 +3,6 @@ import asyncio
 import time
 from typing import TypedDict, Generic, TypeVar
 
-import aiohttp
-
 from ..types import GenerateConfig, GenerateResponse
 
 InfoType = TypeVar('InfoType', bound=TypedDict)

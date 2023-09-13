@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import signal
+import traceback
 from timeit import default_timer as timer
 from pprint import pprint
 
@@ -171,6 +172,9 @@ async def main():
             pbar := tarange(dataset.num_examples(args.split), desc='Processing[C=0, I=0, E=0]'),
             AsyncMap(worker, dataset.split(args.split), max_tasks=args.num_tasks)
         ):
+            if answer['error'] is not None:
+                traceback.print_exception(answer['error'])
+
             if answer['introspect'] is None or answer['correct'] is None:
                 #print(f'{answer["answer_ability"]} -> {answer["answer_sentiment"]}')
                 error_count += 1
