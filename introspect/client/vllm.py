@@ -4,9 +4,8 @@ from typing import TypedDict, Required, NotRequired
 import aiohttp
 import asyncio
 
-from ..types import GenerateConfig, GenerateResponse
+from ..types import GenerateConfig, GenerateResponse, GenerateError
 from ._abstract_client import AbstractClient
-from text_generation.types import Response
 
 class VLLMInfo(TypedDict):
     pass
@@ -83,6 +82,9 @@ class VLLMGenerateConfig(GenerateConfig):
 class VLLMGeneratePayload(VLLMGenerateConfig):
     prompt: Required[str]
 
+class VLLMError(Exception):
+    pass
+
 class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
     """VLLM Client.
 
@@ -101,7 +103,7 @@ class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
             'top_p': 1
         }
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(360 * 10)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
             try:
                 async with session.post(f'{self._base_url}/generate', json=payload) as response:
                     return response.status == 200
@@ -124,13 +126,16 @@ class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
             'presence_penalty': config.get('repetition_penalty', 0) - 1
         }
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(360 * 10)) as session:
-            async with session.post(f'{self._base_url}/generate', json=payload) as response:
-                answer = await response.json()
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5 * 60)) as session:
+                async with session.post(f'{self._base_url}/generate', json=payload) as response:
+                    answer = await response.json()
 
-                if response.status != 200:
-                    raise RuntimeError(f'unexpected status code {response.status}')
+                    if response.status != 200:
+                        raise VLLMError(f'unexpected status code {response.status}')
 
-                return {
-                    'text': answer['text'][0][len(prompt):]
-                }
+                    return {
+                        'text': answer['text'][0][len(prompt):]
+                    }
+        except (VLLMError, asyncio.TimeoutError) as err:
+            raise GenerateError('LLM generate failed') from err

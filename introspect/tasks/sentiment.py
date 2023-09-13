@@ -4,36 +4,45 @@ import asyncio
 from ._abstract_tasks import AbstractTasks
 from ..dataset import SentimentDataset
 
-from ..types import DatasetCategories, SentimentObservation, AnswerableResult
+from ..types import DatasetCategories, SentimentObservation, AnswerableResult, GenerateError
 
 class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
     _category = DatasetCategories.SENTIMENT
 
     async def answerable(self, observation) -> AnswerableResult:
-        answer_ability, answer_sentiment = await asyncio.gather(
-            self._model.generate_text([
-                {
-                    'user': (
-                        'Can you determine the sentiment of the following paragraph.'
-                        ' Answer only "yes" or "no".'
-                        ' Do not explain your answer.\n\n' +
-                        f'Paragraph: {observation["text"]}'
-                    ),
-                    'assistant': None
-                }
-            ]),
-            self._model.generate_text([
-                {
-                    'user': (
-                        'What is the sentiment of the following paragraph.'
-                        ' Answer only "positive", "negative", or "unknown".'
-                        ' Do not explain your answer.\n\n'
-                        f'Paragraph: {observation["text"]}'
-                    ),
-                    'assistant': None
-                }
-            ])
-        )
+        try:
+            answer_ability, answer_sentiment = await asyncio.gather(
+                self._model.generate_text([
+                    {
+                        'user': (
+                            'Can you determine the sentiment of the following paragraph.'
+                            ' Answer only "yes" or "no".'
+                            ' Do not explain your answer.\n\n' +
+                            f'Paragraph: {observation["text"]}'
+                        ),
+                        'assistant': None
+                    }
+                ]),
+                self._model.generate_text([
+                    {
+                        'user': (
+                            'What is the sentiment of the following paragraph.'
+                            ' Answer only "positive", "negative", or "unknown".'
+                            ' Do not explain your answer.\n\n'
+                            f'Paragraph: {observation["text"]}'
+                        ),
+                        'assistant': None
+                    }
+                ])
+            )
+        except GenerateError as err:
+            return {
+                'answer_ability': None,
+                'answer_sentiment': None,
+                'introspect': None,
+                'correct': None,
+                'error': err
+            }
 
         answer_ability_lower = answer_ability.lower()
         answer_sentiment_lower = answer_sentiment.lower()
@@ -84,5 +93,6 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
             'answer_ability': answer_ability,
             'answer_sentiment': answer_sentiment,
             'introspect': introspect,
-            'correct': correct
+            'correct': correct,
+            'error': None
         }

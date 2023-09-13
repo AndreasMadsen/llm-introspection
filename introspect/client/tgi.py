@@ -5,9 +5,9 @@ import aiohttp
 import asyncio
 from text_generation.types import Details
 
-from ..types import GenerateConfig, GenerateResponse
+from ..types import GenerateConfig, GenerateResponse, GenerateError
 from ._abstract_client import AbstractClient
-from text_generation.errors import parse_error
+from text_generation.errors import parse_error, ValidationError
 from text_generation.types import Response
 
 
@@ -113,18 +113,21 @@ class TGIClient(AbstractClient[TGIInfo, TGIResponse]):
             'stream': False
         }
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
-            async with session.post(self._base_url, json=payload) as response:
-                answer = await response.json()
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5 * 60)) as session:
+                async with session.post(self._base_url, json=payload) as response:
+                    answer = await response.json()
 
-                if response.status != 200:
-                    raise parse_error(response.status, answer)
+                    if response.status != 200:
+                        raise parse_error(response.status, answer)
 
-                details = None
-                if 'details' in answer[0]:
-                    details = Response(**answer[0]).details
+                    details = None
+                    if 'details' in answer[0]:
+                        details = Response(**answer[0]).details
 
-                return {
-                    'text': answer[0]['generated_text'],
-                    'details': details
-                }
+                    return {
+                        'text': answer[0]['generated_text'],
+                        'details': details
+                    }
+        except (ValidationError, asyncio.TimeoutError) as err:
+            raise GenerateError('LLM generate failed') from err

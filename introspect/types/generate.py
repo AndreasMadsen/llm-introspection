@@ -30,3 +30,6 @@ class GenerateConfig(TypedDict):
 
 class GenerateResponse(TypedDict):
     text: Required[str]
+
+class GenerateError(Exception):
+    pass

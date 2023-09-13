@@ -1,4 +1,5 @@
 
+import traceback
 from pathlib import Path
 from typing import Generic, TypeVar, TypedDict
 from abc import abstractmethod
@@ -35,8 +36,14 @@ class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
                 The index of the observation is identified by the idx property.
         """
         rowid = _idx_split_to_rowid(split, idx)
+
+        error = None
+        if 'error' in data and isinstance(data['error'], Exception):
+            error = ''.join(traceback.format_exception(data['error']))
+
         await self._con.execute(self._put_sql, {
             **data,
+            'error': error,
             'split': _split_to_id[split],
             'idx': idx,
             'rowid': rowid
