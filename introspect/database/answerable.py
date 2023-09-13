@@ -1,13 +1,13 @@
 
 from ..types import AnswerableResult
-from ._abstract_dataset import AbstractDatabase
+from ._result_dataset import ResultDatabase
 
 def to_bool(value: int|None) -> bool|None:
     if value is None:
         return None
     return bool(value)
 
-class Answerable(AbstractDatabase[AnswerableResult]):
+class Answerable(ResultDatabase[AnswerableResult]):
     _setup_sql = '''
         CREATE TABLE IF NOT EXISTS Answerable (
             id INTEGER NOT NULL PRIMARY KEY,
@@ -19,8 +19,8 @@ class Answerable(AbstractDatabase[AnswerableResult]):
             correct BOOL
         )
     '''
-    _add_sql = '''
-        INSERT INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct)
+    _put_sql = '''
+        REPLACE INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct)
         VALUES (:rowid, :idx, :split, :answer_ability, :answer_sentiment, :introspect, :correct)
     '''
     _has_sql = '''

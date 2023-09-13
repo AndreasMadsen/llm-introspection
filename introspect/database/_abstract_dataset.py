@@ -1,27 +1,14 @@
 
 import pathlib
-from typing import Self, Generic, TypeVar, TypedDict
-from abc import ABCMeta, abstractmethod
+from typing import Self
+from abc import ABCMeta
 import os
 import asyncio
 
 import aiosqlite as sql
 
-from ..types import DatasetSplits
-
-ObservationType = TypeVar('ObservationType', bound=TypedDict)
-
-_split_to_id = { DatasetSplits.TRAIN: 0, DatasetSplits.VALID: 1, DatasetSplits.TEST: 2 }
-_id_to_split = [DatasetSplits.TRAIN, DatasetSplits.VALID, DatasetSplits.TEST]
-
-def _idx_split_to_rowid(split: DatasetSplits, idx: int) -> int:
-   return idx * 3 + _split_to_id[split]
-
-class AbstractDatabase(Generic[ObservationType], metaclass=ABCMeta):
+class AbstractDatabase(metaclass=ABCMeta):
     _setup_sql: str
-    _add_sql: str
-    _has_sql: str
-    _get_sql: str
 
     def __init__(self, filepath: pathlib.Path|str, min_commit_transactions=100) -> None:
         """Create Database to store results
@@ -62,7 +49,7 @@ class AbstractDatabase(Generic[ObservationType], metaclass=ABCMeta):
             await self._commit_task
         await self._schedule_commit()
 
-    async def open(self):
+    async def open(self) -> None:
         """Open connection and create databases
 
         Likely this should not be used directly. Instead, use `async with`.
@@ -71,12 +58,12 @@ class AbstractDatabase(Generic[ObservationType], metaclass=ABCMeta):
         await self._con.execute(self._setup_sql)
         await self._ensure_commit()
 
-    async def commit(self):
+    async def commit(self) -> None:
         """Commits  connection
         """
         await self._ensure_commit()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close connection
 
         Likely this should not be used directly. Instead, use `async with`.
@@ -91,59 +78,6 @@ class AbstractDatabase(Generic[ObservationType], metaclass=ABCMeta):
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self._ensure_commit()
         await self.close()
-
-    async def add(self, split: DatasetSplits, idx: int, data: ObservationType) -> None:
-        """Add an entry to the database
-
-        Args:
-            data (ObservationType): data to add, input is a dictionary.
-                The index of the observation is identified by the idx property.
-        """
-        rowid = _idx_split_to_rowid(split, idx)
-        await self._con.execute(self._add_sql, {
-            **data,
-            'split': _split_to_id[split],
-            'idx': idx,
-            'rowid': rowid
-        })
-        self._transactions_queued += 1
-        self._maybe_commit()
-
-    async def has(self, split: DatasetSplits, idx: int) -> bool:
-        """Check if observation exists
-
-        Args:
-            idx (int): Observation index
-
-        Returns:
-            bool: _description_
-        """
-        rowid = _idx_split_to_rowid(split, idx)
-        cursor = await self._con.execute(self._has_sql, (rowid, ))
-        exists, = await cursor.fetchone() # type: ignore
-        return exists == 1
-
-    @abstractmethod
-    def _get_unpack(self, split: DatasetSplits, idx: int, *args) -> ObservationType:
-        ...
-
-    async def get(self, split: DatasetSplits, idx: int) -> ObservationType|None:
-        """Get entry by index
-
-        Args:
-            idx (int): Observation index
-
-        Returns:
-            ObservationType|None: Returns the entry if it exists.
-                Otherwise, return None.
-        """
-        rowid = _idx_split_to_rowid(split, idx)
-        cursor = await self._con.execute(self._get_sql, (rowid, ))
-        results = await cursor.fetchone()
-        if results is None:
-            return None
-
-        return self._get_unpack(*results)
 
     async def backup(self, *args) -> None:
         """Make a backup of the database

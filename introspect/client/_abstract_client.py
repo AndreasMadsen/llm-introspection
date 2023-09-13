@@ -89,3 +89,16 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
         }
 
         return await self._generate(prompt, config_with_defaults)
+
+    async def generate_text(self, prompt: str, config: GenerateConfig) -> str:
+        """Run inference on the generative model.
+
+        Args:
+            prompt (str): The prompt to generate from.
+            config (GenerateConfig): The configuration which controls the generative algorithm
+                (e.g. beam-search) and the response format.
+
+        Returns:
+            str: The generated content only.
+        """
+        return (await self.generate(prompt, config))['text']

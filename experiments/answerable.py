@@ -16,7 +16,7 @@ from introspect.dataset import datasets
 from introspect.model import models
 from introspect.tasks import tasks
 from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type, cancel_eventloop_on_signal
-from introspect.database import Answerable
+from introspect.database import Answerable, GenerationCache
 from introspect.types import DatasetSplits, SystemMessage
 
 parser = argparse.ArgumentParser()
@@ -70,6 +70,11 @@ parser.add_argument('--split',
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
+parser.add_argument('--seed',
+                    action='store',
+                    default=0,
+                    type=int,
+                    help='Seed used for generation')
 parser.add_argument('--num-tasks',
                     action='store',
                     default=100,
@@ -80,11 +85,16 @@ parser.add_argument('--debug',
                     default=False,
                     type=bool,
                     help='Enable debug mode')
-parser.add_argument('--clean',
+parser.add_argument('--clean-database',
                     action=argparse.BooleanOptionalAction,
                     default=False,
                     type=bool,
-                    help='Enable debug mode')
+                    help='Remove result database')
+parser.add_argument('--clean-cache',
+                    action=argparse.BooleanOptionalAction,
+                    default=False,
+                    type=bool,
+                    help='Remove cache')
 
 async def main():
     durations = {}
@@ -93,7 +103,8 @@ async def main():
     args = parser.parse_args()
     args.model_id = default_model_id(args)
     args.model_type = default_model_type(args)
-    experiment_id = generate_experiment_id('answerable', args.model_name, args.system_message, args.dataset, args.split)
+    experiment_id = generate_experiment_id(
+        'answerable', args.model_name, args.system_message, args.dataset, args.split, args.seed)
 
     # connect to inference server
     print('Answerable experiment:')
@@ -107,9 +118,11 @@ async def main():
     print(f' - System message: {args.system_message}')
     print(f' - Dataset: {args.dataset}')
     print(f' - Split: {args.split}')
+    print(f' - Seed: {args.seed}')
     print('')
     print(f' - Debug: {args.debug}')
-    print(f' - Clean: {args.clean}')
+    print(f' - Clean database: {args.clean_database}')
+    print(f' - Clean cache: {args.clean_cache}')
     print('')
 
     # Create directories
@@ -117,16 +130,22 @@ async def main():
     os.makedirs(args.persistent_dir / 'results' / 'answerable', exist_ok=True)
 
     # setup experiment
-    dataset = datasets[args.dataset](persistent_dir=args.persistent_dir)
     client = clients[args.client](args.endpoint)
-    model = models[args.model_type](client, system_message=args.system_message, debug=args.debug)
+    database = Answerable(experiment_id, persistent_dir=args.persistent_dir)
+    cache = GenerationCache(
+        generate_experiment_id('cache', args.model_name, args.system_message, args.dataset, args.seed),
+        persistent_dir=args.persistent_dir)
+
+    dataset = datasets[args.dataset](persistent_dir=args.persistent_dir)
+    model = models[args.model_type](client, cache, system_message=args.system_message, debug=args.debug, config={'seed': args.seed})
     task = tasks[dataset.category](dataset, model).answerable
-    database = Answerable((args.persistent_dir / 'database' / experiment_id).with_suffix('.sqlite'))
     durations['setup'] = timer() - setup_time_start
 
     # cleanup old database
-    if args.debug or args.clean:
+    if args.clean_database:
         database.remove()
+    if args.clean_cache:
+        cache.remove()
 
     # connect to inference server
     print('Waiting for connection ...')
@@ -139,12 +158,10 @@ async def main():
 
     # Process observations
     results = []
-    async with database as db:
+    async with cache, database as db:
         async def worker(obs):
-            answer = await db.get(args.split, obs['idx'])
-            if answer is None:
-                answer = await task(obs)
-                await db.add(args.split, obs['idx'], answer)
+            answer = await task(obs)
+            await db.put(args.split, obs['idx'], answer)
             return answer
 
         # process train split
