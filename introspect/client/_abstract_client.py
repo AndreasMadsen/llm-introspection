@@ -88,7 +88,7 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
 
         return await self._generate(prompt, config_with_defaults)
 
-    async def generate_text(self, prompt: str, config: GenerateConfig) -> str:
+    async def generate_text(self, prompt: str, config: GenerateConfig) -> tuple[str, float]:
         """Run inference on the generative model.
 
         Args:
@@ -99,4 +99,5 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
         Returns:
             str: The generated content only.
         """
-        return (await self.generate(prompt, config))['text']
+        response = await self.generate(prompt, config)
+        return (response['text'], response['duration'])
