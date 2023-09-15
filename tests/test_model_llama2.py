@@ -1,17 +1,19 @@
 
 import pytest
 
-from introspect.model import Llama2Model, SYSTEM_MESSAGE
+from introspect.model import Llama2Model
+from introspect.types import SystemMessage
+from introspect.client import OfflineClient
 
 def test_model_llama2_render_prompt_empty():
-    model = Llama2Model()
+    model = Llama2Model(OfflineClient())
 
     with pytest.raises(ValueError) as excinfo:
         model.render_prompt([])
     assert str(excinfo.value) == "history must have at least one message pair"
 
 def test_model_llama2_render_system_message_default():
-    model = Llama2Model()
+    model = Llama2Model(OfflineClient())
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -32,7 +34,7 @@ def test_model_llama2_render_system_message_default():
     )
 
 def test_model_llama2_render_system_message_none():
-    model = Llama2Model(system_message=SYSTEM_MESSAGE.NONE)
+    model = Llama2Model(OfflineClient(), system_message=SystemMessage.NONE)
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -42,7 +44,7 @@ def test_model_llama2_render_system_message_none():
     )
 
 def test_model_llama2_render_system_message_empty():
-    model = Llama2Model(system_message='')
+    model = Llama2Model(OfflineClient(), system_message='')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -56,7 +58,7 @@ def test_model_llama2_render_system_message_empty():
     )
 
 def test_model_llama2_render_one_message_no_assistant():
-    model = Llama2Model(system_message='[system message]')
+    model = Llama2Model(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -70,7 +72,7 @@ def test_model_llama2_render_one_message_no_assistant():
     )
 
 def test_model_llama2_render_one_message_with_assistant():
-    model = Llama2Model(system_message='[system message]')
+    model = Llama2Model(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'}
@@ -84,7 +86,7 @@ def test_model_llama2_render_one_message_with_assistant():
     )
 
 def test_model_llama2_render_two_message_no_assistant():
-    model = Llama2Model(system_message='[system message]')
+    model = Llama2Model(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'},
@@ -100,7 +102,7 @@ def test_model_llama2_render_two_message_no_assistant():
     )
 
 def test_model_llama2_render_two_message_with_assistant():
-    model = Llama2Model(system_message='[system message]')
+    model = Llama2Model(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'},
