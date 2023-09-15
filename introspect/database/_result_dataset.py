@@ -6,6 +6,7 @@ from abc import abstractmethod
 
 from ..types import DatasetSplits
 from ._abstract_dataset import AbstractDatabase
+from ..client import OfflineError
 
 _split_to_id = { DatasetSplits.TRAIN: 0, DatasetSplits.VALID: 1, DatasetSplits.TEST: 2 }
 
@@ -38,8 +39,20 @@ class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
         rowid = _idx_split_to_rowid(split, idx)
 
         error = None
-        if 'error' in data and isinstance(data['error'], Exception):
-            error = ''.join(traceback.format_exception(data['error']))
+        # data['error'] is an Exception object and therefore needs to be converted to a string
+        if 'error' in data:
+            match data['error']:
+                # In case of an OfflineError, preserve the original error message
+                case OfflineError():
+                    existing_data = await self.get(split, idx)
+                    if existing_data is None:
+                        error = ''.join(traceback.format_exception(data['error']))
+                    else:
+                        error = existing_data['error']
+
+                # Stringify the error
+                case Exception():
+                    error = ''.join(traceback.format_exception(data['error']))
 
         await self._con.execute(self._put_sql, {
             **data,
