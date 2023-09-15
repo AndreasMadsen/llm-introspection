@@ -41,14 +41,15 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
         traceback: str|None = None
         error: bytes|None = None
         # data['error'] is an Exception object and therefore needs to be encoded
-        if 'error' in data:
+        if isinstance(data['error'], Exception):
             # In case of an OfflineError, preserve the original error message
             if isinstance(data['error'], OfflineError):
                 existing_data = await self.get(split, idx)
-                if existing_data is not None and existing_data['error'] is not None:
+                if existing_data is not None and isinstance(existing_data['error'], Exception):
                     error = pickle.dumps(existing_data['error'])
                     traceback = ''.join(format_exception(existing_data['error']))
 
+            # If an error was not restored, encode the new error
             if error is None or traceback is None:
                 error = pickle.dumps(data['error'])
                 traceback = ''.join(format_exception(data['error']))
