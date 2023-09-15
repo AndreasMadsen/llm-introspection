@@ -1,7 +1,7 @@
 
 import datasets
 
-from ._categories import SentimentDataset
+from ._categories import SentimentDataset, SentimentLabels
 from ..types import SentimentObservation
 
 class IMDBDataset(SentimentDataset):
@@ -10,6 +10,12 @@ class IMDBDataset(SentimentDataset):
     _split_train = 'train[:80%]'
     _split_valid = 'train[80%:]'
     _split_test = 'test'
+
+    def _labels(self, label_def) -> SentimentLabels:
+        return {
+            'negative': label_def.names.index('neg'),
+            'positive': label_def.names.index('pos')
+        }
 
     def _builder(self, cache_dir):
        return datasets.load_dataset_builder('imdb', cache_dir=str(cache_dir))

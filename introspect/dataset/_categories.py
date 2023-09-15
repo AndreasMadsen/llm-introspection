@@ -1,14 +1,13 @@
 
-from enum import IntEnum
-from typing import Type
+from typing import TypedDict
 
 from ._abstract_dataset import AbstractDataset
 from ..types import DatasetCategories, SentimentObservation
 
-class SentimentLabels(IntEnum):
-    negative = 0
-    positive = 1
+class SentimentLabels(TypedDict):
+    negative: int
+    positive: int
 
-class SentimentDataset(AbstractDataset[SentimentObservation]):
+class SentimentDataset(AbstractDataset[SentimentObservation, SentimentLabels]):
     category = DatasetCategories.SENTIMENT
-    labels: Type[SentimentLabels] = SentimentLabels
+    labels: SentimentLabels

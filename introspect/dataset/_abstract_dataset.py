@@ -10,11 +10,12 @@ import datasets
 from ..types import DatasetCategories, DatasetSplits
 
 ObservationType = TypeVar('ObservationType', bound=TypedDict)
+LabelDefType = TypeVar('LabelDefType', bound=TypedDict)
 
-class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
+class AbstractDataset(Generic[ObservationType, LabelDefType], metaclass=ABCMeta):
     name: str
     category: DatasetCategories
-    labels: Type[IntEnum]
+    labels: LabelDefType
 
     _persistent_dir: pathlib.Path
     _target_name: str = 'label'
@@ -31,6 +32,18 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         """
         self._builder_cache = self._builder(cache_dir=persistent_dir / 'cache' / 'datasets')
         self._persistent_dir = persistent_dir
+
+        if not isinstance(self.info.features, dict):
+            raise ValueError('this dataset does not havce features defined')
+
+        if self._target_name not in self.info.features:
+            raise ValueError(f'the dataset._target_name ("{self._target_name}") feature does not exists')
+
+        self.labels = self._labels(self.info.features[self._target_name])
+
+    @abstractmethod
+    def _labels(self, label_def: datasets.ClassLabel) -> LabelDefType:
+        ...
 
     @abstractmethod
     def _builder(self, cache_dir: pathlib.Path) -> datasets.DatasetBuilder:
@@ -65,7 +78,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         self._builder_cache.download_and_prepare()
 
     def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
-        return dataset.map(self._restructure, with_indices=True) # type: ignore
+        return dataset.map(self._restructure, with_indices=True, remove_columns=dataset.column_names) # type: ignore
 
     def num_examples(self, split: DatasetSplits):
         """Number of observations for a given split"""

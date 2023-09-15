@@ -47,7 +47,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
                   'the sentiment of the paragraph is positive' |
                   'the sentiment of this review is positive.'
             ):
-                correct = observation['label'] == self._dataset.labels.positive
+                correct = observation['label'] == self._dataset.labels['positive']
                 decided = True
             case ('negative' |
                   'sentiment: negative' |
@@ -57,7 +57,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
                   'the sentiment of the paragraph is negative' |
                   'the sentiment of the review is negative.'
             ):
-                correct = observation['label'] == self._dataset.labels.negative
+                correct = observation['label'] == self._dataset.labels['negative']
                 decided = True
             case 'mixed':
                 correct = False
