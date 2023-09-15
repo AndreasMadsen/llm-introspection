@@ -1,23 +1,25 @@
 
 from pathlib import Path
 from ._abstract_dataset import AbstractDatabase
+from ..types import GenerateResponse
 
 class GenerationCache(AbstractDatabase):
     _setup_sql = '''
         CREATE TABLE IF NOT EXISTS Cache (
             prompt TEXT NOT NULL PRIMARY KEY,
-            response TEXT NOT NULL
-        ) WITHOUT ROWID
+            response TEXT NOT NULL,
+            duration REAL NOT NULL
+        ) STRICT, WITHOUT ROWID
     '''
     _put_sql = '''
-        REPLACE INTO Cache(prompt, response)
-        VALUES (?, ?)
+        REPLACE INTO Cache(prompt, response, duration)
+        VALUES (:prompt, :response, :duration)
     '''
     _has_sql = '''
         SELECT EXISTS(SELECT 1 FROM Cache WHERE prompt = ?)
     '''
     _get_sql = '''
-        SELECT response
+        SELECT response, duration
         FROM Cache
         WHERE prompt = ?
     '''
@@ -29,14 +31,14 @@ class GenerationCache(AbstractDatabase):
             filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
         super().__init__(filepath, **kwargs)
 
-    async def put(self, prompt: str, answer: str) -> None:
+    async def put(self, prompt: str, answer: GenerateResponse) -> None:
         """Add or update an entry to the database
 
         Args:
             prompt (str): Prompt sent to generative model
-            answer (str): Answer by generative model
+            answer (GenerateResponse): Answer by generative model
         """
-        await self._con.execute(self._put_sql, (prompt, answer))
+        await self._con.execute(self._put_sql, {**answer, 'prompt': prompt})
         self._transactions_queued += 1
         self._maybe_commit()
 
@@ -53,14 +55,15 @@ class GenerationCache(AbstractDatabase):
         exists, = await cursor.fetchone() # type: ignore
         return exists == 1
 
-    async def get(self, prompt: str) -> str|None:
+    async def get(self, prompt: str) -> GenerateResponse|None:
         """Get entry by index
 
         Args:
             prompt (str): Prompt sent to generative model
 
         Returns:
-            str|None: Returns the entry if it exists.
+            tuple[str, float]|None: If the entry exists, return
+                a (answer, duration) tuple.
                 Otherwise, return None.
         """
         cursor = await self._con.execute(self._get_sql, (prompt, ))
@@ -68,4 +71,7 @@ class GenerationCache(AbstractDatabase):
         if results is None:
             return None
 
-        return results[0]
+        return {
+            'response': results[0],
+            'duration': results[1]
+        }

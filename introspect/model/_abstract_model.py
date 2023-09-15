@@ -1,9 +1,8 @@
 
 from abc import ABCMeta, abstractmethod
 
-from ..types import ChatHistory, GenerateConfig, SystemMessage
+from ..types import ChatHistory, GenerateConfig, GenerateResponse, SystemMessage
 from ..client import AbstractClient
-from ..database import GenerationCache
 
 class AbstractModel(metaclass=ABCMeta):
     _name: str
@@ -15,8 +14,7 @@ class AbstractModel(metaclass=ABCMeta):
     _system_message: str|None
 
     def __init__(self,
-                 client: AbstractClient|None = None,
-                 cache: GenerationCache|None = None,
+                 client: AbstractClient,
                  system_message: str|SystemMessage = SystemMessage.DEFAULT,
                  config: GenerateConfig|None = None,
                  debug: bool=False) -> None:
@@ -24,7 +22,6 @@ class AbstractModel(metaclass=ABCMeta):
 
         Args:
             client (AbstractClient | None, optional): Client to generative model. Defaults to None.
-            cache (GenerationCache | None, optional): Cache where generation outputs are stored. Defaults to None.
             system_message (str | SYSTEM_MESSAGE, optional): The system message.
                 No system message can be chosen using SYSTEM_MESSAGE.NONE.
                 A custom message can be set using a string.
@@ -33,7 +30,6 @@ class AbstractModel(metaclass=ABCMeta):
             debug (bool, optional): If True, generative model exchances are printed to stdout. Defaults to False.
         """
         self._client = client
-        self._cache = cache
 
         match system_message:
             case SystemMessage.DEFAULT:
@@ -79,7 +75,7 @@ class AbstractModel(metaclass=ABCMeta):
     def _render_prompt(self, history: ChatHistory) -> str:
         ...
 
-    async def generate_text(self, history: ChatHistory) -> str:
+    async def generate_text(self, history: ChatHistory) -> GenerateResponse:
         """Run inference, using the prompt generated from the message history.
 
         If the prompt is in the cache, the cache is used.
@@ -97,20 +93,11 @@ class AbstractModel(metaclass=ABCMeta):
         """
         prompt = self.render_prompt(history)
 
-        answer = None
-        if self._cache is not None:
-            answer = await self._cache.get(prompt)
-
-        if answer is None:
-            if self._client is None:
-                raise RuntimeError('no client was specified in the model constructor, can not generate')
-            answer = await self._client.generate_text(prompt, self.config)
-
-        if self._cache is not None:
-            await self._cache.put(prompt, answer)
+        answer = await self._client.generate(prompt, self.config)
 
         if self._debug:
             print(f'PROMPT: 「{prompt}」')
-            print(f'ANSWER: 「{answer}」')
+            print(f'ANSWER: 「{answer["response"]}」')
+            print(f'  TIME: 「{answer["duration"]}」')
 
-        return answer.strip()
+        return answer

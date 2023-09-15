@@ -130,15 +130,16 @@ async def main():
     os.makedirs(args.persistent_dir / 'database', exist_ok=True)
     os.makedirs(args.persistent_dir / 'results' / 'answerable', exist_ok=True)
 
-    # setup experiment
-    client = clients[args.client](args.endpoint)
+    # setup database
     database = Answerable(experiment_id, persistent_dir=args.persistent_dir)
     cache = GenerationCache(
         generate_experiment_id('cache', args.model_name, args.system_message, args.dataset, args.seed),
         persistent_dir=args.persistent_dir)
 
+    # setup task
+    client = clients[args.client](args.endpoint, cache)
     dataset = datasets[args.dataset](persistent_dir=args.persistent_dir)
-    model = models[args.model_type](client, cache, system_message=args.system_message, debug=args.debug, config={'seed': args.seed})
+    model = models[args.model_type](client, system_message=args.system_message, debug=args.debug, config={'seed': args.seed})
     task = tasks[dataset.category](dataset, model).answerable
     durations['setup'] = timer() - setup_time_start
 
@@ -166,8 +167,7 @@ async def main():
             return answer
 
         # process train split
-        train_time_start = timer()
-        introspect_count, correct_count, error_count = (0, 0, 0)
+        introspect_count, correct_count, error_count, duration_total = (0, 0, 0, 0)
         async for _, answer in azip(
             pbar := tarange(dataset.num_examples(args.split), desc='Processing[C=0, I=0, E=0]'),
             AsyncMap(worker, dataset.split(args.split), max_tasks=args.num_tasks)
@@ -175,12 +175,12 @@ async def main():
             if answer['error'] is not None:
                 traceback.print_exception(answer['error'])
 
-            if answer['introspect'] is None or answer['correct'] is None:
-                #print(f'{answer["answer_ability"]} -> {answer["answer_sentiment"]}')
+            if answer['introspect'] is None or answer['correct'] is None or answer['duration'] is None:
                 error_count += 1
             else:
-                introspect_count += int(answer['introspect'])
-                correct_count += int(answer['correct'])
+                introspect_count += answer['introspect']
+                correct_count += answer['correct']
+                duration_total += answer['duration']
 
             pbar.set_description(f'Processing[C={correct_count}, I={introspect_count}, E={error_count}]')
 
@@ -192,7 +192,7 @@ async def main():
             'error': error_count,
             'total': dataset.num_examples(args.split)
         })
-        durations[f'eval_{args.split}'] = timer() - train_time_start
+        durations[f'eval_{args.split}'] = duration_total
 
     # save results
     with open((args.persistent_dir / 'results' / 'answerable' / experiment_id).with_suffix('.json'), 'w') as fp:

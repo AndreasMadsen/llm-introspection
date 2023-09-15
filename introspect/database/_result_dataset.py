@@ -1,21 +1,21 @@
 
-import traceback
+from traceback import format_exception
 from pathlib import Path
-from typing import Generic, TypeVar, TypedDict
+from typing import Generic, TypeVar
 from abc import abstractmethod
+import pickle
 
-from ..types import DatasetSplits
+from ..types import DatasetSplits, OfflineError, TaskResult
 from ._abstract_dataset import AbstractDatabase
-from ..client import OfflineError
 
 _split_to_id = { DatasetSplits.TRAIN: 0, DatasetSplits.VALID: 1, DatasetSplits.TEST: 2 }
 
 def _idx_split_to_rowid(split: DatasetSplits, idx: int) -> int:
    return idx * 3 + _split_to_id[split]
 
-ObservationType = TypeVar('ObservationType', bound=TypedDict)
+TaskResultType = TypeVar('TaskResultType', bound=TaskResult)
 
-class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
+class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
     _put_sql: str
     _has_sql: str
     _get_sql: str
@@ -27,36 +27,36 @@ class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
             filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
         super().__init__(filepath, **kwargs)
 
-    async def put(self, split: DatasetSplits, idx: int, data: ObservationType) -> None:
+    async def put(self, split: DatasetSplits, idx: int, data: TaskResultType) -> None:
         """Add or update an entry to the database
 
         Args:
             split (DatasetSplits): Dataset split
             idx (int): Observation index
-            data (ObservationType): data to add, input is a dictionary.
+            data (TaskResultType): data to add, input is a dictionary.
                 The index of the observation is identified by the idx property.
         """
         rowid = _idx_split_to_rowid(split, idx)
 
-        error = None
-        # data['error'] is an Exception object and therefore needs to be converted to a string
+        traceback: str|None = None
+        error: bytes|None = None
+        # data['error'] is an Exception object and therefore needs to be encoded
         if 'error' in data:
-            match data['error']:
-                # In case of an OfflineError, preserve the original error message
-                case OfflineError():
-                    existing_data = await self.get(split, idx)
-                    if existing_data is None:
-                        error = ''.join(traceback.format_exception(data['error']))
-                    else:
-                        error = existing_data['error']
+            # In case of an OfflineError, preserve the original error message
+            if isinstance(data['error'], OfflineError):
+                existing_data = await self.get(split, idx)
+                if existing_data is not None and existing_data['error'] is not None:
+                    error = pickle.dumps(existing_data['error'])
+                    traceback = ''.join(format_exception(existing_data['error']))
 
-                # Stringify the error
-                case Exception():
-                    error = ''.join(traceback.format_exception(data['error']))
+            if error is None or traceback is None:
+                error = pickle.dumps(data['error'])
+                traceback = ''.join(format_exception(data['error']))
 
         await self._con.execute(self._put_sql, {
             **data,
             'error': error,
+            'traceback': traceback,
             'split': _split_to_id[split],
             'idx': idx,
             'rowid': rowid
@@ -80,10 +80,10 @@ class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
         return exists == 1
 
     @abstractmethod
-    def _get_unpack(self, split: DatasetSplits, idx: int, *args) -> ObservationType:
+    def _get_unpack(self, split: DatasetSplits, idx: int, *args) -> TaskResultType:
         ...
 
-    async def get(self, split: DatasetSplits, idx: int) -> ObservationType|None:
+    async def get(self, split: DatasetSplits, idx: int) -> TaskResultType|None:
         """Get entry by index
 
         Args:
@@ -91,7 +91,7 @@ class ResultDatabase(AbstractDatabase, Generic[ObservationType]):
             idx (int): Observation index
 
         Returns:
-            ObservationType|None: Returns the entry if it exists.
+            TaskResultType|None: Returns the entry if it exists.
                 Otherwise, return None.
         """
         rowid = _idx_split_to_rowid(split, idx)

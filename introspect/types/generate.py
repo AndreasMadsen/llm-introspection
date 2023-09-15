@@ -29,7 +29,11 @@ class GenerateConfig(TypedDict):
     seed: NotRequired[int]
 
 class GenerateResponse(TypedDict):
-    text: Required[str]
+    response: Required[str]
+    duration: Required[float]
 
 class GenerateError(Exception):
+    pass
+
+class OfflineError(GenerateError):
     pass
