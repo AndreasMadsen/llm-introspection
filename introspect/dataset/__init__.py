@@ -1,6 +1,6 @@
 
 __all__ = [
-    'SentimentDataset',
+    'AbstractDataset', 'SentimentDataset',
     'SST2Dataset', 'IMDBDataset',
     'datasets'
 ]

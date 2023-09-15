@@ -1,8 +1,7 @@
 import pathlib
 from functools import cached_property
 from abc import ABCMeta, abstractmethod
-from typing import Any, TypeVar, Iterable, Generic, Type, TypedDict
-from enum import IntEnum
+from typing import Any, TypeVar, Iterable, Generic, TypedDict
 from collections.abc import Iterable
 
 import datasets

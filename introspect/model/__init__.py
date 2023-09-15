@@ -1,6 +1,6 @@
 
 __all__ = ['FalconModel', 'Llama2Model',
-           'models']
+           'models', 'AbstractModel']
 
 from typing import Type
 

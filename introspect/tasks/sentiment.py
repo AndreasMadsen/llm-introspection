@@ -1,7 +1,8 @@
 
 import asyncio
 
-from ._abstract_tasks import AbstractTasks, RequestCapture
+from ._abstract_tasks import AbstractTasks
+from ._request_capture import RequestCapture
 from ..dataset import SentimentDataset
 
 from ..types import DatasetCategories, SentimentObservation, PartialAnswerableResult
