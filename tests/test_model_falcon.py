@@ -1,17 +1,19 @@
 
 import pytest
 
-from introspect.model import FalconModel, SYSTEM_MESSAGE
+from introspect.model import FalconModel
+from introspect.types import SystemMessage
+from introspect.client import OfflineClient
 
 def test_model_falcon_render_prompt_empty():
-    model = FalconModel()
+    model = FalconModel(OfflineClient())
 
     with pytest.raises(ValueError) as excinfo:
         model.render_prompt([])
     assert str(excinfo.value) == "history must have at least one message pair"
 
 def test_model_falcon_render_system_message_default():
-    model = FalconModel()
+    model = FalconModel(OfflineClient())
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -32,7 +34,7 @@ def test_model_falcon_render_system_message_default():
     )
 
 def test_model_falcon_render_system_message_none():
-    model = FalconModel(system_message=SYSTEM_MESSAGE.NONE)
+    model = FalconModel(OfflineClient(), system_message=SystemMessage.NONE)
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -43,7 +45,7 @@ def test_model_falcon_render_system_message_none():
     )
 
 def test_model_falcon_render_system_message_empty():
-    model = FalconModel(system_message='')
+    model = FalconModel(OfflineClient(), system_message='')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -55,7 +57,7 @@ def test_model_falcon_render_system_message_empty():
     )
 
 def test_model_falcon_render_one_message_no_assistant():
-    model = FalconModel(system_message='[system message]')
+    model = FalconModel(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': None}
@@ -67,7 +69,7 @@ def test_model_falcon_render_one_message_no_assistant():
     )
 
 def test_model_falcon_render_one_message_with_assistant():
-    model = FalconModel(system_message='[system message]')
+    model = FalconModel(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'}
@@ -79,7 +81,7 @@ def test_model_falcon_render_one_message_with_assistant():
     )
 
 def test_model_falcon_render_two_message_no_assistant():
-    model = FalconModel(system_message='[system message]')
+    model = FalconModel(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'},
@@ -94,7 +96,7 @@ def test_model_falcon_render_two_message_no_assistant():
     )
 
 def test_model_falcon_render_two_message_with_assistant():
-    model = FalconModel(system_message='[system message]')
+    model = FalconModel(OfflineClient(), system_message='[system message]')
 
     prompt = model.render_prompt([
         {'user': '[user message 1]', 'assistant': '[assistant message 1]'},
