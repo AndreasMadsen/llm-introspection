@@ -1,24 +1,26 @@
 from abc import ABCMeta, abstractmethod
 import asyncio
 import time
+from timeit import default_timer as timer
 from typing import TypedDict, Generic, TypeVar
 
 from ..types import GenerateConfig, GenerateResponse
+from ..database import GenerationCache
 
 InfoType = TypeVar('InfoType', bound=TypedDict)
-ResponseType = TypeVar('ResponseType', bound=GenerateResponse)
 
-class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
-    def __init__(self, base_url: str, connect_timeout_sec: int=30*60) -> None:
+class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
+    def __init__(self, base_url: str, cache: GenerationCache|None = None, connect_timeout_sec: int=30*60) -> None:
         """Create a client that can be used to run a generative inference
 
         Args:
             base_url (str): The url to the endpoint. For example: "http://localhost:8080"
+            cache (GenerationCache | None, optional): Cache where generation outputs are stored. Defaults to None.
             connect_timeout_sec (int, optional): _description_. Defaults to 30*60.
         """
         self._base_url = base_url
         self._connect_timeout_sec = connect_timeout_sec
-
+        self._cache = cache
         self._is_connected = False
         self._on_connection = None
 
@@ -31,7 +33,7 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    async def _generate(self, prompt: str, config: GenerateConfig) -> ResponseType:
+    async def _generate(self, prompt: str, config: GenerateConfig) -> str:
         ...
 
     async def _await_connection(self):
@@ -61,7 +63,7 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
 
         return await self._info()
 
-    async def generate(self, prompt: str, config: GenerateConfig) -> ResponseType:
+    async def generate(self, prompt: str, config: GenerateConfig) -> GenerateResponse:
         """Run inference on the generative model.
 
         Args:
@@ -72,6 +74,11 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
         Returns:
             Response: The generated content, including optional details.
         """
+        if self._cache is not None:
+            cached_answer = await self._cache.get(prompt)
+            if cached_answer is not None:
+                return cached_answer
+
         if not self._is_connected:
             await self.connect()
 
@@ -86,18 +93,15 @@ class AbstractClient(Generic[InfoType, ResponseType], metaclass=ABCMeta):
             'repetition_penalty': config.get('repetition_penalty', 1)
         }
 
-        return await self._generate(prompt, config_with_defaults)
+        # compute response
+        request_start_time = timer()
+        response = await self._generate(prompt, config_with_defaults)
+        durration = timer() - request_start_time
+        computed_answer: GenerateResponse = {
+            'response': response,
+            'duration': durration
+        }
 
-    async def generate_text(self, prompt: str, config: GenerateConfig) -> tuple[str, float]:
-        """Run inference on the generative model.
-
-        Args:
-            prompt (str): The prompt to generate from.
-            config (GenerateConfig): The configuration which controls the generative algorithm
-                (e.g. beam-search) and the response format.
-
-        Returns:
-            str: The generated content only.
-        """
-        response = await self.generate(prompt, config)
-        return (response['text'], response['duration'])
+        if self._cache is not None:
+            await self._cache.put(prompt, computed_answer)
+        return computed_answer

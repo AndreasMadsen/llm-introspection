@@ -1,5 +1,7 @@
 
-from ..types import AnswerableResult
+import pickle
+
+from ..types import AnswerableResult, DatasetSplits
 from ._result_dataset import ResultDatabase
 
 def to_bool(value: int|None) -> bool|None:
@@ -15,29 +17,35 @@ class Answerable(ResultDatabase[AnswerableResult]):
             split INTEGER NOT NULL,
             answer_ability TEXT,
             answer_sentiment TEXT,
-            introspect BOOL,
-            correct BOOL,
-            error TEXT
+            introspect INTEGER,
+            correct INTEGER,
+            duration REAL,
+            error BLOB,
+            traceback TEXT
         ) STRICT
     '''
     _put_sql = '''
-        REPLACE INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct, error)
-        VALUES (:rowid, :idx, :split, :answer_ability, :answer_sentiment, :introspect, :correct, :error)
+        REPLACE INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct, duration, error, traceback)
+        VALUES (:rowid, :idx, :split, :answer_ability, :answer_sentiment, :introspect, :correct, :duration, :error, :traceback)
     '''
     _has_sql = '''
         SELECT EXISTS(SELECT 1 FROM Answerable WHERE id = ?)
     '''
     _get_sql = '''
-        SELECT answer_ability, answer_sentiment, introspect, correct, error
+        SELECT answer_ability, answer_sentiment, introspect, correct, duration, error
         FROM Answerable
         WHERE id = ?
     '''
 
-    def _get_unpack(self, answer_ability, answer_sentiment, introspect, correct, error):
+    def _get_unpack(self,
+                    answer_ability: str|None, answer_sentiment: str|None,
+                    introspect: int|None, correct: int|None,
+                    duration: float|None, error: bytes|None) -> AnswerableResult:
         return {
             'answer_ability': answer_ability,
             'answer_sentiment': answer_sentiment,
             'introspect': to_bool(introspect),
             'correct': to_bool(correct),
-            'error': error
+            'duration': duration,
+            'error': None if error is None else pickle.loads(error)
         }

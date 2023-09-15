@@ -3,9 +3,8 @@ from typing import TypedDict, Literal, Required, NotRequired
 
 import aiohttp
 import asyncio
-from text_generation.types import Details
 
-from ..types import GenerateConfig, GenerateResponse, GenerateError
+from ..types import GenerateConfig, GenerateError
 from ._abstract_client import AbstractClient
 from text_generation.errors import parse_error, ValidationError
 from text_generation.types import Response
@@ -29,9 +28,6 @@ class TGIInfo(TypedDict):
   validation_workers: Required[int]
   version: Required[str]
   waiting_served_ratio: Required[float]
-
-class TGIResponse(GenerateResponse):
-    details: Required[Details|None]
 
 class TGIGenerateConfig(GenerateConfig):
     # Default values:
@@ -89,7 +85,7 @@ class TGIGeneratePayload(TypedDict):
     parameters: NotRequired[TGIGenerateConfig]
     stream: Literal[False]
 
-class TGIClient(AbstractClient[TGIInfo, TGIResponse]):
+class TGIClient(AbstractClient[TGIInfo]):
     async def _try_connect(self) -> bool:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
             try:
@@ -106,7 +102,7 @@ class TGIClient(AbstractClient[TGIInfo, TGIResponse]):
 
                 return await response.json()
 
-    async def _generate(self, prompt, config) -> TGIResponse:
+    async def _generate(self, prompt, config) -> str:
         payload: TGIGeneratePayload = {
             'inputs': prompt,
             'parameters': { **config },
@@ -121,13 +117,7 @@ class TGIClient(AbstractClient[TGIInfo, TGIResponse]):
                     if response.status != 200:
                         raise parse_error(response.status, answer)
 
-                    details = None
-                    if 'details' in answer[0]:
-                        details = Response(**answer[0]).details
+                    return answer[0]['generated_text']
 
-                    return {
-                        'text': answer[0]['generated_text'],
-                        'details': details
-                    }
         except (ValidationError, asyncio.TimeoutError) as err:
             raise GenerateError('LLM generate failed') from err

@@ -4,13 +4,10 @@ from typing import TypedDict, Required, NotRequired
 import aiohttp
 import asyncio
 
-from ..types import GenerateConfig, GenerateResponse, GenerateError
+from ..types import GenerateConfig, GenerateError
 from ._abstract_client import AbstractClient
 
 class VLLMInfo(TypedDict):
-    pass
-
-class VLLMResponse(GenerateResponse):
     pass
 
 class VLLMGenerateConfig(GenerateConfig):
@@ -85,7 +82,7 @@ class VLLMGeneratePayload(VLLMGenerateConfig):
 class VLLMError(Exception):
     pass
 
-class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
+class VLLMClient(AbstractClient[VLLMInfo]):
     """VLLM Client.
 
     Although this client works, with the `python -m vllm.entrypoints.api_server` endpoint,
@@ -113,7 +110,7 @@ class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
     async def _info(self) -> VLLMInfo:
         return {}
 
-    async def _generate(self, prompt: str, config: GenerateConfig) -> VLLMResponse:
+    async def _generate(self, prompt: str, config: GenerateConfig) -> str:
         payload: VLLMGeneratePayload = {
             'prompt': prompt,
             'max_tokens': config.get('max_new_tokens', 0),
@@ -134,8 +131,7 @@ class VLLMClient(AbstractClient[VLLMInfo, VLLMResponse]):
                     if response.status != 200:
                         raise VLLMError(f'unexpected status code {response.status}')
 
-                    return {
-                        'text': answer['text'][0][len(prompt):]
-                    }
+                    return answer['text'][0][len(prompt):]
+
         except (VLLMError, asyncio.TimeoutError) as err:
             raise GenerateError('LLM generate failed') from err
