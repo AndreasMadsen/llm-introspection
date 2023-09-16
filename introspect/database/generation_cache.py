@@ -9,7 +9,7 @@ class GenerationCache(AbstractDatabase):
             prompt TEXT NOT NULL PRIMARY KEY,
             response TEXT NOT NULL,
             duration REAL NOT NULL
-        ) STRICT, WITHOUT ROWID
+        ) WITHOUT ROWID
     '''
     _put_sql = '''
         REPLACE INTO Cache(prompt, response, duration)

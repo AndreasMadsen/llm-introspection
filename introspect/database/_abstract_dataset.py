@@ -9,6 +9,7 @@ import aiosqlite as sql
 
 class AbstractDatabase(metaclass=ABCMeta):
     _setup_sql: str
+    _con: sql.Connection
 
     def __init__(self, filepath: pathlib.Path|str, min_commit_transactions=100) -> None:
         """Create Database to store results
