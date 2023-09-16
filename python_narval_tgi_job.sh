@@ -57,6 +57,12 @@ export HF_HUB_DISABLE_TELEMETRY=1
 
 # Run
 python -u -X faulthandler "$1" --persistent-dir $SCRATCH/introspect --endpoint "http://127.0.0.1:${tgi_port}" "${@:2}"
+PYTHON_EXIT_CODE=$?
 
 # Shutdown
+echo "Stopping TGI server as background process [PID: ${TGI_PID}]"
 kill -INT $TGI_PID
+wait
+
+# finish
+exit $PYTHON_EXIT_CODE
