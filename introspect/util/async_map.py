@@ -45,13 +45,41 @@ class AsyncMapIterator(AsyncIterator[YieldOutType]):
                  worker: Callable[[YieldInType], Coroutine[Any, Any, YieldOutType]],
                  queue: Iterator[YieldInType],
                  max_tasks: int=8) -> None:
-        self._queue = queue
+        self._queue: Iterator[YieldInType] = queue
         self._worker = worker
         self._max_tasks = max_tasks
         self._tasks = set()
+        self._is_canceled = False
 
         for _ in range(self._max_tasks):
             self._start_next_task()
+
+    def _cancel(self) -> None:
+        self._is_canceled = True
+        # dereference queue to prevent memory leaks
+        self._queue = [] # type: ignore
+
+        for task in self._tasks:
+            task.cancel()
+        self._tasks = set()
+
+    def _collect_exceptions(self) -> Exception|None:
+        all_exceptions = []
+        for task in self._tasks:
+            if not task.done() or task.cancelled():
+                continue
+
+            exception = task.exception()
+            if exception is not None:
+                all_exceptions.append(exception)
+
+        match len(all_exceptions):
+            case 0:
+                return None
+            case 1:
+                return all_exceptions[0]
+            case _:
+                return ExceptionGroup('AsyncMap detected multiple exceptions', all_exceptions)
 
     def _start_next_task(self) -> None:
             try:
@@ -62,15 +90,29 @@ class AsyncMapIterator(AsyncIterator[YieldOutType]):
             self._tasks.add(asyncio.create_task(self._worker(job)))
 
     async def __anext__(self) -> YieldOutType:
-        if len(self._tasks) == 0:
+        if len(self._tasks) == 0 or self._is_canceled:
             raise StopAsyncIteration
 
         done, _ = await asyncio.wait(self._tasks, return_when=asyncio.FIRST_COMPLETED)
         finished_task = done.pop()
+        has_exception = finished_task.exception() is not None
 
-        # Add tasks if neccesary
+        # An true exception happend or the task is cancelled (CancelledError)
+        if has_exception:
+            exception = self._collect_exceptions()
+            self._cancel()
+
+            # There are no exceptions from any tasks, so just raise the CancelledError
+            if exception is None:
+                return await finished_task
+
+            # There is at least one exception, so raise it/them
+            raise exception
+
+        # Not cancelled, no exception from task. Continue.
+        # Note, other tasks may still have exceptions, but we will learn about
+        # those in the next iteration.
         self._tasks.remove(finished_task)
         self._start_next_task()
 
-        # return result
         return await finished_task
