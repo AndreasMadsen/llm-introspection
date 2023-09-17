@@ -18,7 +18,7 @@ from introspect.model import models
 from introspect.tasks import tasks
 from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type, cancel_eventloop_on_signal
 from introspect.database import Answerable, GenerationCache
-from introspect.types import DatasetSplits, SystemMessage
+from introspect.types import DatasetSplits, SystemMessage, GenerateError
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--persistent-dir',
@@ -162,7 +162,10 @@ async def main():
     results = []
     async with cache, database as db:
         async def worker(obs):
-            answer = await task(obs)
+            try:
+                answer = await task(obs)
+            except GenerateError as error:
+                answer = error
             await db.put(args.split, obs['idx'], answer)
             return answer
 
@@ -172,10 +175,10 @@ async def main():
             pbar := tarange(dataset.num_examples(args.split), desc='Processing[C=0, I=0, E=0]'),
             AsyncMap(worker, dataset.split(args.split), max_tasks=args.num_tasks)
         ):
-            if answer['error'] is not None:
-                traceback.print_exception(answer['error'])
-
-            if answer['introspect'] is None or answer['correct'] is None or answer['duration'] is None:
+            if isinstance(answer, GenerateError):
+                traceback.print_exception(answer)
+                error_count += 1
+            elif answer['introspect'] is None or answer['correct'] is None:
                 error_count += 1
             else:
                 introspect_count += answer['introspect']

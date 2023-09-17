@@ -16,7 +16,8 @@ def _idx_split_to_rowid(split: DatasetSplits, idx: int) -> int:
 TaskResultType = TypeVar('TaskResultType', bound=TaskResult)
 
 class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
-    _put_sql: str
+    _put_error_sql: str
+    _put_obs_sql: str
     _has_sql: str
     _get_sql: str
 
@@ -27,7 +28,7 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
             filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
         super().__init__(filepath, **kwargs)
 
-    async def put(self, split: DatasetSplits, idx: int, data: TaskResultType) -> None:
+    async def put(self, split: DatasetSplits, idx: int, data: TaskResultType|GenerateError) -> None:
         """Add or update an entry to the database
 
         Args:
@@ -38,30 +39,33 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
         """
         rowid = _idx_split_to_rowid(split, idx)
 
-        traceback: str|None = None
-        error: bytes|None = None
-        match data['error']:
+        match data:
             case OfflineError():
                 # There is information value in saving an OfflineError
                 return
 
             case GenerateError():
-                error = pickle.dumps(data['error'])
-                traceback = ''.join(format_exception(data['error']))
+                await self._con.execute(self._put_error_sql, {
+                    'error': pickle.dumps(data),
+                    'traceback': ''.join(format_exception(data)),
+                    'split': _split_to_id[split],
+                    'idx': idx,
+                    'rowid': rowid
+                })
 
             case Exception():
                 raise ValueError(
                     "data['error'] is an error, but not a GenerationError"
                 ) from data['error'] # type:ignore
 
-        await self._con.execute(self._put_sql, {
-            **data,
-            'error': error,
-            'traceback': traceback,
-            'split': _split_to_id[split],
-            'idx': idx,
-            'rowid': rowid
-        })
+            case _:
+                await self._con.execute(self._put_obs_sql, {
+                    **data,
+                    'split': _split_to_id[split],
+                    'idx': idx,
+                    'rowid': rowid
+                })
+
         self._transactions_queued += 1
         self._maybe_commit()
 
@@ -84,7 +88,7 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
     def _get_unpack(self, split: DatasetSplits, idx: int, *args) -> TaskResultType:
         ...
 
-    async def get(self, split: DatasetSplits, idx: int) -> TaskResultType|None:
+    async def get(self, split: DatasetSplits, idx: int) -> TaskResultType|GenerateError|None:
         """Get entry by index
 
         Args:
@@ -101,4 +105,9 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
         if results is None:
             return None
 
-        return self._get_unpack(*results)
+        # error is set
+        if results[-1] is not None:
+            return pickle.loads(results[-1])
+
+        # unpack
+        return self._get_unpack(*results[:-1])

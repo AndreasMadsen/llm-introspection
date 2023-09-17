@@ -1,10 +1,8 @@
 
 from typing import TypedDict, Required
-from .generate import GenerateError
 
 class TaskResult(TypedDict):
-    duration: Required[float|None]
-    error: Required[GenerateError|None]
+    duration: Required[float]
 
 class PartialAnswerableResult(TypedDict):
     answer_ability: Required[str|None]

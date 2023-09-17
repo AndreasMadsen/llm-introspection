@@ -12,8 +12,7 @@ async def test_database_basic_put():
         'answer_sentiment': 'positive',
         'introspect': True,
         'correct': False,
-        'duration': 10,
-        'error': None
+        'duration': 10
     }
 
     async with Answerable(':memory:') as db:
@@ -41,35 +40,21 @@ async def test_database_basic_put():
 
 @pytest.mark.asyncio
 async def test_database_error_storage():
-    obs_generate_error: AnswerableResult = {
-        'answer_ability': None,
-        'answer_sentiment': None,
-        'introspect': None,
-        'correct': None,
-        'duration': None,
-        'error': GenerateError('generate error')
-    }
-    obs_offline_error: AnswerableResult = {
-        'answer_ability': None,
-        'answer_sentiment': None,
-        'introspect': None,
-        'correct': None,
-        'duration': None,
-        'error': OfflineError('offline error')
-    }
+    obs_generate_error = GenerateError('generate error')
+    obs_offline_error = OfflineError('offline error')
 
     async with Answerable(':memory:') as db:
         await db.put(DatasetSplits.TRAIN, 1, obs_generate_error)
 
         db_item = await db.get(DatasetSplits.TRAIN, 1)
-        assert db_item is not None
-        assert format_exception(db_item['error']) == format_exception(obs_generate_error['error'])
+        assert isinstance(db_item,GenerateError)
+        assert format_exception(db_item) == format_exception(obs_generate_error)
 
         # If there is existing error, then don't save an OfflineError
         await db.put(DatasetSplits.TRAIN, 1, obs_offline_error)
         db_item = await db.get(DatasetSplits.TRAIN, 1)
-        assert db_item is not None
-        assert format_exception(db_item['error']) == format_exception(obs_generate_error['error'])
+        assert isinstance(db_item,GenerateError)
+        assert format_exception(db_item) == format_exception(obs_generate_error)
 
         # If there is no existing error, then don't save an OfflineError
         await db.put(DatasetSplits.TRAIN, 2, obs_offline_error)
