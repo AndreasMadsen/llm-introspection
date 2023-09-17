@@ -55,7 +55,13 @@ class AbstractDatabase(metaclass=ABCMeta):
 
         Likely this should not be used directly. Instead, use `async with`.
         """
+        is_new = (not self._filepath.exists()) if isinstance(self._filepath, pathlib.Path) else True
         self._con = await sql.connect(self._filepath)
+        # Use WAL (write ahead log) with NORMAL synchronization, for best performance.
+        if is_new:
+            await self._con.execute('PRAGMA journal_mode = WAL;')
+            await self._con.execute('PRAGMA synchronous = NORMAL;')
+
         await self._con.execute(self._setup_sql)
         await self._ensure_commit()
 
