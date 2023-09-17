@@ -170,7 +170,7 @@ async def main():
             return answer
 
         # process train split
-        introspect_count, correct_count, error_count, duration_total = (0, 0, 0, 0)
+        introspect_count, correct_count, missmatch_count, error_count, duration_total = (0, 0, 0, 0, 0)
         async for _, answer in azip(
             pbar := tarange(dataset.num_examples(args.split), desc='Processing[C=0, I=0, E=0]'),
             AsyncMap(worker, dataset.split(args.split), max_tasks=args.num_tasks)
@@ -179,19 +179,22 @@ async def main():
                 traceback.print_exception(answer)
                 error_count += 1
             elif answer['introspect'] is None or answer['correct'] is None:
-                error_count += 1
+                missmatch_count += 1
             else:
                 introspect_count += answer['introspect']
                 correct_count += answer['correct']
                 duration_total += answer['duration']
 
-            pbar.set_description(f'Processing[C={correct_count}, I={introspect_count}, E={error_count}]')
+            pbar.set_description(
+                f'Processing[C={correct_count}, I={introspect_count}, M={missmatch_count}, E={error_count}]'
+            )
 
         # save accumulated results
         results.append({
             'split': args.split,
             'introspect': introspect_count,
             'correct': correct_count,
+            'missmatch': missmatch_count,
             'error': error_count,
             'total': dataset.num_examples(args.split)
         })
