@@ -24,9 +24,13 @@ class Answerable(ResultDatabase[AnswerableResult]):
             traceback TEXT
         )
     '''
-    _put_sql = '''
+    _put_error_sql = '''
         REPLACE INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct, duration, error, traceback)
-        VALUES (:rowid, :idx, :split, :answer_ability, :answer_sentiment, :introspect, :correct, :duration, :error, :traceback)
+        VALUES (:rowid, :idx, :split, NULL, NULL, NULL, NULL, NULL, :error, :traceback)
+    '''
+    _put_obs_sql = '''
+        REPLACE INTO Answerable(id, idx, split, answer_ability, answer_sentiment, introspect, correct, duration, error, traceback)
+        VALUES (:rowid, :idx, :split, :answer_ability, :answer_sentiment, :introspect, :correct, :duration, NULL, NULL)
     '''
     _has_sql = '''
         SELECT EXISTS(SELECT 1 FROM Answerable WHERE id = ?)
@@ -40,12 +44,11 @@ class Answerable(ResultDatabase[AnswerableResult]):
     def _get_unpack(self,
                     answer_ability: str|None, answer_sentiment: str|None,
                     introspect: int|None, correct: int|None,
-                    duration: float|None, error: bytes|None) -> AnswerableResult:
+                    duration: float) -> AnswerableResult:
         return {
             'answer_ability': answer_ability,
             'answer_sentiment': answer_sentiment,
             'introspect': to_bool(introspect),
             'correct': to_bool(correct),
-            'duration': duration,
-            'error': None if error is None else pickle.loads(error)
+            'duration': duration
         }

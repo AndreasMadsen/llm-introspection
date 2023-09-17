@@ -6,7 +6,7 @@ from introspect.dataset import AbstractDataset
 from introspect.model import AbstractModel
 
 from ..types import DatasetCategories, AnswerableResult, PartialAnswerableResult
-from ._request_capture import RequestCapture, request_capture_scope
+from ._request_capture import RequestCapture
 
 DatasetType = TypeVar('DatasetType', bound=AbstractDataset)
 ObservationType = TypeVar('ObservationType', bound=TypedDict)
@@ -34,11 +34,10 @@ class AbstractTasks(Generic[DatasetType, ObservationType], metaclass=ABCMeta):
             "correct": None
         }
 
-        with request_capture_scope(self._model) as capture:
-            answer = await self._answerable(observation, capture)
+        capture = RequestCapture(self._model)
+        answer = await self._answerable(observation, capture)
 
         return {
             **answer,
-            'duration': capture.duration,
-            'error': capture.error,
+            'duration': capture.duration
         }
