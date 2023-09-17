@@ -4,7 +4,7 @@ import time
 from timeit import default_timer as timer
 from typing import TypedDict, Generic, TypeVar
 
-from ..types import GenerateConfig, GenerateResponse
+from ..types import GenerateConfig, GenerateResponse, GenerateError, OfflineError
 from ..database import GenerationCache
 
 InfoType = TypeVar('InfoType', bound=TypedDict)
@@ -23,6 +23,16 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         self._cache = cache
         self._is_connected = False
         self._on_connection = None
+
+    async def _get_cache(self, prompt) -> None|GenerateResponse|GenerateError:
+        if self._cache is None:
+            return None
+        return await self._cache.get(prompt)
+
+    async def _put_cache(self, prompt, answer: GenerateResponse|GenerateError) -> None:
+        if self._cache is None:
+            return
+        await self._cache.put(prompt, answer)
 
     @abstractmethod
     async def _try_connect(self) -> bool:
@@ -74,14 +84,6 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         Returns:
             Response: The generated content, including optional details.
         """
-        if self._cache is not None:
-            cached_answer = await self._cache.get(prompt)
-            if cached_answer is not None:
-                return cached_answer
-
-        if not self._is_connected:
-            await self.connect()
-
         config_with_defaults: GenerateConfig = {
             **config,
             'max_new_tokens': config.get('max_new_tokens', 20),
@@ -93,15 +95,37 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
             'repetition_penalty': config.get('repetition_penalty', 1)
         }
 
-        # compute response
-        request_start_time = timer()
-        response = await self._generate(prompt, config_with_defaults)
-        durration = timer() - request_start_time
-        computed_answer: GenerateResponse = {
-            'response': response,
-            'duration': durration
-        }
+        # Return valid response from cache, if it exists
+        cached_answer = await self._get_cache(prompt)
+        if cached_answer is not None and not isinstance(cached_answer, GenerateError):
+            return cached_answer
 
-        if self._cache is not None:
-            await self._cache.put(prompt, computed_answer)
-        return computed_answer
+        # No valid response in cache (might not exists, might be an error).
+        # Attempt to compute response.
+
+        if not self._is_connected:
+            await self.connect()
+
+        # compute response
+        try:
+            request_start_time = timer()
+            response = await self._generate(prompt, config_with_defaults)
+            durration = timer() - request_start_time
+            computed_answer: GenerateResponse|GenerateError = {
+                'response': response,
+                'duration': durration
+            }
+        except GenerateError as error:
+            computed_answer: GenerateResponse|GenerateError = error
+
+        match computed_answer:
+            case OfflineError():
+                raise computed_answer from cached_answer
+
+            case GenerateError():
+                await self._put_cache(prompt, computed_answer)
+                raise computed_answer
+
+            case _:
+                await self._put_cache(prompt, computed_answer)
+                return computed_answer

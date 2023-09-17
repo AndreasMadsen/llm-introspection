@@ -65,14 +65,13 @@ async def test_database_error_storage():
         assert db_item is not None
         assert format_exception(db_item['error']) == format_exception(obs_generate_error['error'])
 
-        # Check that offline errors do not overwrite existing errors
+        # If there is existing error, then don't save an OfflineError
         await db.put(DatasetSplits.TRAIN, 1, obs_offline_error)
         db_item = await db.get(DatasetSplits.TRAIN, 1)
         assert db_item is not None
         assert format_exception(db_item['error']) == format_exception(obs_generate_error['error'])
 
-        # If there is no existing error, then use the offline error
+        # If there is no existing error, then don't save an OfflineError
         await db.put(DatasetSplits.TRAIN, 2, obs_offline_error)
         db_item = await db.get(DatasetSplits.TRAIN, 2)
-        assert db_item is not None
-        assert format_exception(db_item['error']) == format_exception(obs_offline_error['error'])
+        assert db_item is None
