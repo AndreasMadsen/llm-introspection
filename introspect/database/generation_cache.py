@@ -1,25 +1,30 @@
 
 from pathlib import Path
+import pickle
+from traceback import format_exception
+
 from ._abstract_dataset import AbstractDatabase
-from ..types import GenerateResponse
+from ..types import GenerateResponse, GenerateError
 
 class GenerationCache(AbstractDatabase):
     _setup_sql = '''
         CREATE TABLE IF NOT EXISTS Cache (
             prompt TEXT NOT NULL PRIMARY KEY,
-            response TEXT NOT NULL,
-            duration REAL NOT NULL
+            response TEXT,
+            duration REAL,
+            error BLOB,
+            traceback TEXT
         ) WITHOUT ROWID
     '''
     _put_sql = '''
-        REPLACE INTO Cache(prompt, response, duration)
-        VALUES (:prompt, :response, :duration)
+        REPLACE INTO Cache(prompt, response, duration, error, traceback)
+        VALUES (:prompt, :response, :duration, :error, :traceback)
     '''
     _has_sql = '''
         SELECT EXISTS(SELECT 1 FROM Cache WHERE prompt = ?)
     '''
     _get_sql = '''
-        SELECT response, duration
+        SELECT response, duration, error
         FROM Cache
         WHERE prompt = ?
     '''
@@ -31,14 +36,32 @@ class GenerationCache(AbstractDatabase):
             filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
         super().__init__(filepath, **kwargs)
 
-    async def put(self, prompt: str, answer: GenerateResponse) -> None:
+    async def put(self, prompt: str, answer: GenerateResponse|GenerateError) -> None:
         """Add or update an entry to the database
 
         Args:
             prompt (str): Prompt sent to generative model
-            answer (GenerateResponse): Answer by generative model
+            answer (GenerateResponse, GenerateError): Answer by generative model
         """
-        await self._con.execute(self._put_sql, {**answer, 'prompt': prompt})
+        match answer:
+            case GenerateError():
+                await self._con.execute(self._put_sql, {
+                    'prompt': prompt,
+                    'response': None,
+                    'duration': None,
+                    'error': pickle.dumps(answer),
+                    'traceback': ''.join(format_exception(answer)),
+                })
+
+            case _:
+                await self._con.execute(self._put_sql, {
+                    'prompt': prompt,
+                    'response': answer['response'],
+                    'duration': answer['duration'],
+                    'error': None,
+                    'traceback': None
+                })
+
         self._transactions_queued += 1
         self._maybe_commit()
 
@@ -55,7 +78,7 @@ class GenerationCache(AbstractDatabase):
         exists, = await cursor.fetchone() # type: ignore
         return exists == 1
 
-    async def get(self, prompt: str) -> GenerateResponse|None:
+    async def get(self, prompt: str) -> GenerateResponse|GenerateError|None:
         """Get entry by index
 
         Args:
@@ -71,7 +94,11 @@ class GenerationCache(AbstractDatabase):
         if results is None:
             return None
 
+        response, duration, error = results
+        if error is not None:
+            return pickle.loads(error)
+
         return {
-            'response': results[0],
-            'duration': results[1]
+            'response': response,
+            'duration': duration
         }

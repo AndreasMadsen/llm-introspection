@@ -5,7 +5,7 @@ from typing import Generic, TypeVar
 from abc import abstractmethod
 import pickle
 
-from ..types import DatasetSplits, OfflineError, TaskResult
+from ..types import DatasetSplits, OfflineError, TaskResult, GenerateError
 from ._abstract_dataset import AbstractDatabase
 
 _split_to_id = { DatasetSplits.TRAIN: 0, DatasetSplits.VALID: 1, DatasetSplits.TEST: 2 }
@@ -40,19 +40,19 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
 
         traceback: str|None = None
         error: bytes|None = None
-        # data['error'] is an Exception object and therefore needs to be encoded
-        if isinstance(data['error'], Exception):
-            # In case of an OfflineError, preserve the original error message
-            if isinstance(data['error'], OfflineError):
-                existing_data = await self.get(split, idx)
-                if existing_data is not None and isinstance(existing_data['error'], Exception):
-                    error = pickle.dumps(existing_data['error'])
-                    traceback = ''.join(format_exception(existing_data['error']))
+        match data['error']:
+            case OfflineError():
+                # There is information value in saving an OfflineError
+                return
 
-            # If an error was not restored, encode the new error
-            if error is None or traceback is None:
+            case GenerateError():
                 error = pickle.dumps(data['error'])
                 traceback = ''.join(format_exception(data['error']))
+
+            case Exception():
+                raise ValueError(
+                    "data['error'] is an error, but not a GenerationError"
+                ) from data['error'] # type:ignore
 
         await self._con.execute(self._put_sql, {
             **data,
