@@ -1,4 +1,5 @@
 
+from tblib import pickling_support
 from typing import TypedDict, NotRequired, Required
 
 class GenerateConfig(TypedDict):
@@ -37,3 +38,5 @@ class GenerateError(Exception):
 
 class OfflineError(GenerateError):
     pass
+
+pickling_support.install(GenerateError, OfflineError)
