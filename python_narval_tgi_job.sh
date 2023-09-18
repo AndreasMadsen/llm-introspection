@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J unamed-instruct
+#SBATCH -J unamed-introspect-job
 #SBATCH --output=%x.%j.out
 #SBATCH --account=rrg-bengioy-ad
 #SBATCH --exclusive
@@ -31,8 +31,8 @@ model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_ar
 
 # start TGI as a background process
 MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 \
-    MAX_TOTAL_TOKENS=4096 MAX_BATCH_PREFILL_TOKENS=8192 \
-    WAITING_SERVED_RATIO=1.2 MAX_WAITING_TOKENS=1024 \
+    MAX_TOTAL_TOKENS=4096 MAX_BATCH_PREFILL_TOKENS=4096 \
+    WAITING_SERVED_RATIO=1.2 MAX_WAITING_TOKENS=512 \
     VALIDATION_WORKERS=4 PORT=$tgi_port \
     MODEL_ID="${model_id[$model_name]}" \
     bash tgi/tgi-server-cc.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
@@ -61,8 +61,7 @@ PYTHON_EXIT_CODE=$?
 
 # Shutdown
 echo "Stopping TGI server as background process [PID: ${TGI_PID}]"
-kill -INT $TGI_PID
-wait
+kill -TERM $TGI_PID
 
 # finish
 exit $PYTHON_EXIT_CODE
