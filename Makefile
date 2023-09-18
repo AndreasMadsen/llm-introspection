@@ -23,3 +23,8 @@ download-database-mila:
 	rsync --info=progress2 -urltv --delete \
 		--filter=':- .gitignore' --exclude='.git/' \
 		-e ssh mila:~/scratch/introspect/database/ ./database
+
+download-database-narval:
+	rsync --info=progress2 -urltv --delete \
+		--filter=':- .gitignore' --exclude='.git/' \
+		-e ssh cc-narval:~/scratch/introspect/database/ ./database
