@@ -19,7 +19,7 @@ class AbstractDatabase(metaclass=ABCMeta):
             print(await db.has(0))
 
         Args:
-            filepath (pathlib.Path | str): A filepath or in-memory address, where the database is tored
+            filepath (pathlib.Path | str): A filepath or in-memory address, where the database is stored
         """
         self._filepath = filepath
         self._min_commit_transactions = min_commit_transactions
