@@ -14,7 +14,7 @@ class GenerationCache(AbstractDatabase):
             duration REAL,
             error BLOB,
             traceback TEXT
-        ) WITHOUT ROWID
+        ) STRICT, WITHOUT ROWID
     '''
     _put_sql = '''
         REPLACE INTO Cache(prompt, response, duration, error, traceback)

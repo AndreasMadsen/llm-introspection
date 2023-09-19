@@ -5,8 +5,8 @@ from ._abstract_dataset import AbstractDataset
 from ..types import DatasetCategories, SentimentObservation
 
 class SentimentLabels(TypedDict):
-    negative: int
     positive: int
+    negative: int
 
 class SentimentDataset(AbstractDataset[SentimentObservation, SentimentLabels]):
     category = DatasetCategories.SENTIMENT
