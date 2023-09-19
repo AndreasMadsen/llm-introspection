@@ -11,7 +11,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
     _category = DatasetCategories.SENTIMENT
 
     async def _answerable(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialAnswerableResult:
-        answer_ability, answer_sentiment = await asyncio.gather(
+        ability_source, sentiment_source = await asyncio.gather(
             generate_text([
                 {
                     'user': (
@@ -36,10 +36,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
             ])
         )
 
-        answer_ability_lower = answer_ability.lower()
-        answer_sentiment_lower = answer_sentiment.lower()
-
-        match answer_sentiment_lower:
+        match sentiment_source.lower():
             case ('positive' |
                   'sentiment: positive' |
                   'the sentiment of the paragraph is: positive' |
@@ -48,8 +45,7 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
                   'the sentiment of the paragraph is positive' |
                   'the sentiment of this review is positive.'
             ):
-                correct = observation['label'] == self._dataset.labels['positive']
-                decided = True
+                sentiment = 'positive'
             case ('negative' |
                   'sentiment: negative' |
                   'the sentiment of the paragraph is: negative' |
@@ -58,32 +54,42 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
                   'the sentiment of the paragraph is negative' |
                   'the sentiment of the review is negative.'
             ):
-                correct = observation['label'] == self._dataset.labels['negative']
-                decided = True
+                sentiment = 'negative'
             case 'mixed':
-                correct = False
-                decided = True
+                sentiment = 'neutral'
             case (
                 'unknown' |
                 'the sentiment of the paragraph is unknown.'
             ):
-                correct = False
-                decided = False
+                sentiment = 'unknown'
             case _:
-                correct = None
-                decided = None
+                sentiment = None
 
-        match answer_ability_lower:
+        match ability_source.lower():
             case 'yes' | 'yes.':
-                introspect = None if decided is None else decided
+                ability = 'yes'
             case 'no' | 'no.':
-                introspect = None if decided is None else not decided
+                ability = 'no'
+            case _:
+                ability = None
+
+        match ability:
+            case 'yes':
+                introspect = sentiment == 'negative' or sentiment == 'positive'
+            case 'no':
+                introspect = sentiment == 'uknown'
             case _:
                 introspect = None
 
+        correct = None
+        if sentiment is not None:
+            correct = observation['label'] == self._dataset.labels.get(sentiment, None)
+
         return {
-            'answer_ability': answer_ability,
-            'answer_sentiment': answer_sentiment,
+            'ability_source': ability_source,
+            'ability': ability,
+            'sentiment_source': sentiment_source,
+            'sentiment': sentiment,
             'introspect': introspect,
             'correct': correct
         }
