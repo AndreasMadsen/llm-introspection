@@ -1,14 +1,16 @@
 
-from typing import TypedDict, Required
+from typing import TypedDict, Required, Literal
 
 class TaskResult(TypedDict):
     duration: Required[float]
 
 class PartialAnswerableResult(TypedDict):
-    answer_ability: Required[str|None]
-    answer_sentiment: Required[str|None]
-    introspect: Required[bool|None]
+    ability_source: Required[str|None]
+    ability: Required[Literal['yes', 'no']|None]
+    sentiment_source: Required[str|None]
+    sentiment: Required[Literal['positive', 'negative', 'neutral', 'unknown']|None]
     correct: Required[bool|None]
+    introspect: Required[bool|None]
 
 class AnswerableResult(TaskResult, PartialAnswerableResult):
     pass

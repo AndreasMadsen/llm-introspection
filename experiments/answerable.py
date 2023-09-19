@@ -156,7 +156,7 @@ async def main():
     pprint(await client.info())
 
     # Set the signal handler
-    cancel_eventloop_on_signal(signal.SIGTERM)
+    # cancel_eventloop_on_signal(signal.SIGTERM)
 
     # Process observations
     results = []
