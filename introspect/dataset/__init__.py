@@ -5,7 +5,7 @@ __all__ = [
     'datasets'
 ]
 
-from typing import Type
+from typing import Type, Mapping
 
 from ._abstract_dataset import AbstractDataset
 from ._categories import SentimentDataset
@@ -13,7 +13,7 @@ from ._categories import SentimentDataset
 from .sst2 import SST2Dataset
 from .imdb import IMDBDataset
 
-datasets: dict[str, Type[AbstractDataset]] = {
+datasets: Mapping[str, Type[AbstractDataset]] = {
     Dataset.name: Dataset
     for Dataset
     in [SST2Dataset, IMDBDataset]

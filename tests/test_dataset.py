@@ -29,9 +29,9 @@ def test_dataset_sentiment(info):
     assert dataset.name == info.name
     assert dataset.category == DatasetCategories.SENTIMENT
 
-    assert isinstance(dataset.labels['negative'], int)
-    assert isinstance(dataset.labels['positive'], int)
-    assert dataset.labels['positive'] != dataset.labels['negative']
+    assert isinstance(dataset.label_str2int['negative'], int)
+    assert isinstance(dataset.label_str2int['positive'], int)
+    assert dataset.label_str2int['positive'] != dataset.label_str2int['negative']
 
     assert dataset.train_num_examples == dataset.num_examples(DatasetSplits.TRAIN) == info.train
     assert dataset.valid_num_examples == dataset.num_examples(DatasetSplits.VALID) == info.valid
