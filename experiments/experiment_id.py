@@ -28,6 +28,17 @@ parser.add_argument('--split',
                     default=None,
                     type=str,
                     help='The dataset split to evaluate on')
+parser.add_argument('--task',
+                    action='store',
+                    default='answerable',
+                    type=str,
+                    help='Which task to run')
+parser.add_argument('--task-config',
+                    action='store',
+                    nargs='+',
+                    default=[],
+                    type=str,
+                    help='List of configuration options for selected task')
 parser.add_argument('--seed',
                     action='store',
                     default=None,
@@ -39,7 +50,10 @@ def main():
 
     experiment_id = generate_experiment_id(
         args.scriptpath.name.rstrip('.py'),
-        args.model_name, args.system_message, args.dataset, args.split, args.seed)
+        model=args.model_name, system_message=args.system_message,
+        dataset=args.dataset, split=args.split,
+        task=args.task, task_config=args.task_config,
+        seed=args.seed)
     print(experiment_id)
 
 if __name__ == '__main__':
