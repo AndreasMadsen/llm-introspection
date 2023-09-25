@@ -1,40 +1,37 @@
 
-import asyncio
+from typing import Literal
 
-from ._abstract_tasks import AbstractTasks
+from ._abstract_tasks import \
+    AbstractTask, \
+    IntrospectTask, FaithfulTask, \
+    TaskResultType, PartialTaskResultType
 from ._request_capture import RequestCapture
+
 from ..dataset import SentimentDataset
+from ..types import \
+    TaskCategories, DatasetCategories, \
+    SentimentObservation, \
+    PartialIntrospectResult, IntrospectResult, \
+    PartialFaithfulResult, FaithfulResult
 
-from ..types import DatasetCategories, SentimentObservation, PartialAnswerableResult
+class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
+    dataset_category = DatasetCategories.SENTIMENT
 
-class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
-    _category = DatasetCategories.SENTIMENT
+    async def _sentiment(
+        self, parahraph: str, generate_text: RequestCapture
+    ) -> tuple[str, Literal['positive', 'negative', 'neutral', 'unknown']|None]:
 
-    async def _answerable(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialAnswerableResult:
-        ability_source, sentiment_source = await asyncio.gather(
-            generate_text([
-                {
-                    'user': (
-                        'Can you determine the sentiment of the following paragraph.'
-                        ' Answer only "yes" or "no".'
-                        ' Do not explain your answer.\n\n' +
-                        f'Paragraph: {observation["text"]}'
-                    ),
-                    'assistant': None
-                }
-            ]),
-            generate_text([
-                {
-                    'user': (
-                        'What is the sentiment of the following paragraph.'
-                        ' Answer only "positive", "negative", or "unknown".'
-                        ' Do not explain your answer.\n\n'
-                        f'Paragraph: {observation["text"]}'
-                    ),
-                    'assistant': None
-                }
-            ])
-        )
+        sentiment_source = await generate_text([
+            {
+                'user': (
+                    f'What is the sentiment of the following paragraph?'
+                    f' Answer only "positive", "negative", or "unknown".'
+                    f' Do not explain your answer.\n\n'
+                    f'Paragraph: {parahraph}'
+                ),
+                'assistant': None
+            }
+        ])
 
         match sentiment_source.lower():
             case ('positive' |
@@ -65,6 +62,51 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
             case _:
                 sentiment = None
 
+        return (sentiment_source, sentiment)
+
+    def _is_correct(self, observation: SentimentObservation, sentiment: str|None) -> bool|None:
+        match sentiment:
+            case None:
+                return None
+            case ('positive' | 'negative'):
+                return observation['label'] == self._dataset.label_str2int[sentiment]
+            case _:
+                return False
+
+class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservation],
+                              SentimentTask[PartialIntrospectResult, IntrospectResult]):
+    task_category = TaskCategories.ANSWERABLE
+
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialIntrospectResult:
+        sentiment_source, sentiment = await self._sentiment(observation['text'], generate_text)
+        correct = self._is_correct(observation, sentiment)
+
+        if self._is_enabled('give-options'):
+            ability_source = await generate_text([
+                {
+                    'user': (
+                        f'Can you determine the sentiment of the following paragraph?'
+                        f' The sentiment is either "positive", "negative", or "unknown".'
+                        f' Answer only "yes" or "no".'
+                        f' Do not explain your answer.\n\n' +
+                        f'Paragraph: {observation["text"]}'
+                    ),
+                    'assistant': None
+                }
+            ])
+        else:
+            ability_source = await generate_text([
+                {
+                    'user': (
+                        f'Can you determine the sentiment of the following paragraph?'
+                        f' Answer only "yes" or "no".'
+                        f' Do not explain your answer.\n\n' +
+                        f'Paragraph: {observation["text"]}'
+                    ),
+                    'assistant': None
+                }
+            ])
+
         match ability_source.lower():
             case 'yes' | 'yes.':
                 ability = 'yes'
@@ -81,15 +123,109 @@ class SentimentTasks(AbstractTasks[SentimentDataset, SentimentObservation]):
             case _:
                 introspect = None
 
-        correct = None
-        if sentiment is not None:
-            correct = observation['label'] == self._dataset.labels.get(sentiment, None)
-
         return {
-            'ability_source': ability_source,
-            'ability': ability,
             'sentiment_source': sentiment_source,
             'sentiment': sentiment,
+            'correct': correct,
+            'ability_source': ability_source,
+            'ability': ability,
             'introspect': introspect,
-            'correct': correct
+        }
+
+class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObservation],
+                                  SentimentTask[PartialFaithfulResult, FaithfulResult]):
+    task_category = TaskCategories.COUNTERFACTUAL
+
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
+        sentiment_source, sentiment = await self._sentiment(observation['text'], generate_text)
+        correct = self._is_correct(observation, sentiment)
+
+        if observation['label'] == self._dataset.label_str2int['positive']:
+            opposite_sentiment = 'negative'
+        else:
+            opposite_sentiment = 'positive'
+
+        counterfactual_source = await generate_text([
+            {
+                'user': (
+                    f'Edit the following paragraph such that the sentiment is "{opposite_sentiment}".'
+                    f' Make as few edits as possible.'
+                    f' Do not explain your answer.\n\n' +
+                    f'Paragraph: {observation["text"]}'
+                ),
+                'assistant': None
+            }
+        ])
+
+        # The counterfactual tends to have the format:
+        # Sure, here is the paragraph with positive sentiment.\n
+        # \n
+        # "The movie was ..."
+        # However, sometimes the paragraph is not qouted.
+        first_break_index = counterfactual_source.find('\n\n')
+        first_qoute_index = counterfactual_source.find('"', first_break_index)
+        last_qoute_index = counterfactual_source.rfind('"', first_qoute_index + 1)
+        if first_qoute_index >= 0 and last_qoute_index >= 0:
+            counterfactual = counterfactual_source[first_qoute_index+1:last_qoute_index-1]
+        elif first_break_index >= 0:
+            counterfactual = counterfactual_source[first_break_index+2:]
+        else:
+            counterfactual = counterfactual_source
+
+        counterfactual_sentiment_source, counterfactual_sentiment = await self._sentiment(counterfactual, generate_text)
+
+        faithful: bool | None = None
+        if counterfactual_sentiment is not None:
+            faithful = counterfactual_sentiment == opposite_sentiment
+
+        return {
+            'sentiment_source': sentiment_source,
+            'sentiment': sentiment,
+            'correct': correct,
+            'explain_source': counterfactual_source,
+            'explain': counterfactual,
+            'explain_sentiment_source': counterfactual_sentiment_source,
+            'explain_sentiment': counterfactual_sentiment,
+            'faithful': faithful,
+        }
+
+class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation],
+                            SentimentTask[PartialFaithfulResult, FaithfulResult]):
+    task_category = TaskCategories.REDACTED
+
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
+        sentiment_source, sentiment = await self._sentiment(observation['text'], generate_text)
+        correct = self._is_correct(observation, sentiment)
+
+        redacted_source = await generate_text([
+            {
+                'user': (
+                    f'Redact the following paragraph such that the sentiment can no longer be determined,'
+                    f' by replacing important words with [REDACTED].'
+                    f' Do not explain your answer.\n\n' +
+                    f'Paragraph: {observation["text"]}'
+                ),
+                'assistant': None
+            }
+        ])
+
+        # The redacted_source tends to have the format:
+        # Paragraph: The movie was [Redacted] ...
+        redacted = redacted_source.removeprefix('Paragraph: ')
+
+        redacted_sentiment_source, redacted_sentiment = await self._sentiment(redacted, generate_text)
+
+        faithful: bool | None = None
+        if redacted_sentiment is not None:
+            faithful = redacted_sentiment == 'unknown' or redacted_sentiment == 'neutral'
+
+        return {
+            'sentiment_source': sentiment_source,
+            'sentiment': sentiment,
+            'correct': correct,
+            'explain_source': redacted_source,
+            'explain': redacted,
+            'explain_sentiment_source': redacted_sentiment_source,
+            'explain_sentiment': redacted_sentiment,
+            'faithful': faithful,
         }

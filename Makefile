@@ -28,3 +28,8 @@ download-database-narval:
 	rsync --info=progress2 -urltv --delete \
 		--filter=':- .gitignore' --exclude='.git/' \
 		-e ssh cc-narval:~/scratch/introspect/database/ ./database
+
+submitjobs:
+	bash jobs/answerable.sh
+	bash jobs/counterfactual.sh
+	bash jobs/redacted.sh
