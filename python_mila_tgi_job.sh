@@ -4,7 +4,7 @@
 #SBATCH --constraint=ampere&nvlink
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gpus-per-task=a100:4
+#SBATCH --gpus-per-task=4
 #SBATCH --cpus-per-task=24
 #SBATCH --mem-per-gpu=32G
 #SBATCH --time=2:59:00
