@@ -3,18 +3,19 @@ import pytest
 from traceback import format_exception
 
 from introspect.database import Answerable
-from introspect.types import AnswerableResult, DatasetSplits, GenerateError, OfflineError
+from introspect.types import IntrospectResult, DatasetSplits, GenerateError, OfflineError
 
 @pytest.mark.asyncio
 async def test_database_basic_put():
-    obs: AnswerableResult = {
-        'ability_source': 'yes',
-        'ability': 'yes',
+    obs: IntrospectResult = {
         'sentiment_source': 'positive',
         'sentiment': 'positive',
-        'introspect': True,
         'correct': False,
-        'duration': 10
+        'ability_source': 'yes',
+        'ability': 'yes',
+        'introspect': True,
+        'duration': 10,
+        'label': 'positive'
     }
 
     async with Answerable(':memory:') as db:
