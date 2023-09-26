@@ -73,6 +73,26 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             case _:
                 return False
 
+    def _extract_explanation_paragraph(self, source: str) -> str|None:
+        # The counterfactual tends to have the format:
+        # Sure, here is the paragraph with positive sentiment.\n
+        # \n
+        # "The movie was ..."
+        # However, sometimes the paragraph is not qouted.
+        first_break_index = source.find('\n\n') + 2
+        first_qoute_index = source.find('"', first_break_index) + 1
+        last_qoute_index = source.rfind('"', first_qoute_index)
+        if source.startswith('Paragraph: '):
+            extract = source.removeprefix('Paragraph: ')
+        elif first_qoute_index == first_break_index and last_qoute_index >= 0:
+            extract = source[first_qoute_index:last_qoute_index-1]
+        elif first_break_index >= 0:
+            extract = source[first_break_index:]
+        else:
+            extract = None
+
+        return extract
+
 class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservation],
                               SentimentTask[PartialIntrospectResult, IntrospectResult]):
     task_category = TaskCategories.ANSWERABLE
@@ -156,23 +176,11 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
                 'assistant': None
             }
         ])
+        counterfactual = self._extract_explanation_paragraph(counterfactual_source)
 
-        # The counterfactual tends to have the format:
-        # Sure, here is the paragraph with positive sentiment.\n
-        # \n
-        # "The movie was ..."
-        # However, sometimes the paragraph is not qouted.
-        first_break_index = counterfactual_source.find('\n\n')
-        first_qoute_index = counterfactual_source.find('"', first_break_index)
-        last_qoute_index = counterfactual_source.rfind('"', first_qoute_index + 1)
-        if first_qoute_index >= 0 and last_qoute_index >= 0:
-            counterfactual = counterfactual_source[first_qoute_index+1:last_qoute_index-1]
-        elif first_break_index >= 0:
-            counterfactual = counterfactual_source[first_break_index+2:]
-        else:
-            counterfactual = counterfactual_source
-
-        counterfactual_sentiment_source, counterfactual_sentiment = await self._sentiment(counterfactual, generate_text)
+        counterfactual_sentiment_source, counterfactual_sentiment = None, None
+        if counterfactual is not None:
+            counterfactual_sentiment_source, counterfactual_sentiment = await self._sentiment(counterfactual, generate_text)
 
         faithful: bool | None = None
         if counterfactual_sentiment is not None:
@@ -211,9 +219,11 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
 
         # The redacted_source tends to have the format:
         # Paragraph: The movie was [Redacted] ...
-        redacted = redacted_source.removeprefix('Paragraph: ')
+        redacted = self._extract_explanation_paragraph(redacted_source)
 
-        redacted_sentiment_source, redacted_sentiment = await self._sentiment(redacted, generate_text)
+        redacted_sentiment_source, redacted_sentiment = None, None
+        if redacted is not None:
+            redacted_sentiment_source, redacted_sentiment = await self._sentiment(redacted, generate_text)
 
         faithful: bool | None = None
         if redacted_sentiment is not None:
