@@ -99,7 +99,7 @@ parser.add_argument('--debug',
                     help='Enable debug mode')
 parser.add_argument('--clean-database',
                     action=argparse.BooleanOptionalAction,
-                    default=False,
+                    default=True,
                     type=bool,
                     help='Remove result database')
 parser.add_argument('--clean-cache',
@@ -189,7 +189,6 @@ async def main():
             pbar := tarange(dataset.num_examples(args.split), desc=aggregator.progress_description),
             AsyncMap(worker, dataset.split(args.split), max_tasks=args.max_workers)
         ):
-            pprint(answer)
             if isinstance(answer, GenerateError):
                 traceback.print_exception(answer)
 
