@@ -11,15 +11,13 @@ class AbstractDatabase(metaclass=ABCMeta):
     _setup_sql: str
     _con: sql.Connection
 
-    def __init__(self, filepath: pathlib.Path|str, min_commit_transactions=100) -> None:
-        """Create Database to store results
-
-        Example:
-        async with Database(':memory:') as db:
-            print(await db.has(0))
+    def __init__(self, filepath: pathlib.Path|str, min_commit_transactions: int=100) -> None:
+        """Create Database
 
         Args:
             filepath (pathlib.Path | str): A filepath or in-memory address, where the database is stored
+            min_commit_transactions (int, optional): The minimum number of transactions before commiting
+                to the database on disk. Default to 100.
         """
         self._filepath = filepath
         self._min_commit_transactions = min_commit_transactions
