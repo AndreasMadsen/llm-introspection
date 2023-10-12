@@ -30,9 +30,7 @@ tgi_port=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_argument("--model-name"); print(p.parse_known_args()[0].model_name)' "${@:2}")
 
 # start TGI as a background process
-MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 \
-    MAX_TOTAL_TOKENS=4096 MAX_BATCH_PREFILL_TOKENS=4096 \
-    WAITING_SERVED_RATIO=1.2 MAX_WAITING_TOKENS=512 \
+MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 \
     VALIDATION_WORKERS=4 PORT=$tgi_port \
     MODEL_ID="${model_id[$model_name]}" \
     bash tgi/tgi-server-mila.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
@@ -53,6 +51,7 @@ export HF_HUB_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_HUB_DISABLE_TELEMETRY=1
+export HF_DATASETS_CACHE="${SCRATCH}/introspect/cache/datasets"
 
 # Run
 python -u -X faulthandler "$1" --persistent-dir $SCRATCH/introspect --endpoint "http://127.0.0.1:${tgi_port}" "${@:2}"
