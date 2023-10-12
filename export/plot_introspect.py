@@ -10,7 +10,7 @@ import plotnine as p9
 import numpy as np
 
 from introspect.dataset import datasets
-from introspect.types import DatasetSplits
+from introspect.types import DatasetSplits, SystemMessage, TaskCategories
 from introspect.util import generate_experiment_id
 
 def select_target_metric(df):
@@ -39,35 +39,61 @@ parser.add_argument('--format',
                     type=str,
                     choices=['paper', 'keynote', 'appendix'],
                     help='The dimentions and format of the plot.')
-parser.add_argument('--datasets',
-                    action='store',
-                    nargs='+',
-                    default=list(datasets.keys()),
-                    choices=datasets.keys(),
-                    type=str,
-                    help='The datasets to plot')
 parser.add_argument('--model-name',
                     action='store',
                     default=None,
                     type=str,
                     help='Model name')
+parser.add_argument('--system-message',
+                    action='store',
+                    default=SystemMessage.DEFAULT,
+                    type=SystemMessage,
+                    choices=list(SystemMessage),
+                    help='Use a system message')
+parser.add_argument('--dataset',
+                    action='store',
+                    default='IMDB',
+                    type=str,
+                    choices=datasets.keys(),
+                    help='The dataset to fine-tune on')
 parser.add_argument('--split',
                     action='store',
                     default=DatasetSplits.TRAIN,
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
+parser.add_argument('--task',
+                    action='store',
+                    default=TaskCategories.ANSWERABLE,
+                    type=TaskCategories,
+                    choices=list(TaskCategories),
+                    help='Which task to run')
+parser.add_argument('--task-config',
+                    action='store',
+                    nargs='+',
+                    default=[],
+                    type=str,
+                    help='List of configuration options for selected task')
+parser.add_argument('--seed',
+                    action='store',
+                    default=0,
+                    type=int,
+                    help='Seed used for generation')
 
 if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args, unknown = parser.parse_known_args()
 
-    experiment_id = generate_experiment_id('answerable_introspect', args.model_name, args.split)
+    experiment_id = generate_experiment_id('introspect',
+        model=args.model_name, system_message=args.system_message,
+        dataset=args.dataset, split=args.split,
+        task=args.task, task_config=args.task_config,
+        seed=args.seed)
 
     if args.stage in ['both', 'preprocess']:
         # Read JSON files into dataframe
         results = []
-        files = sorted((args.persistent_dir / 'results' / 'answerable').glob('answerable_*.json'))
+        files = sorted((args.persistent_dir / 'results' / 'analysis').glob('analysis_*.json'))
         for file in tqdm(files, desc='Loading answerable .json files'):
             try:
                 with open(file, 'r') as fp:
@@ -75,9 +101,14 @@ if __name__ == "__main__":
             except Exception as error:
                 raise Exception(f'{file} caused an error') from error
 
-            if data['args']['split'] == args.split and \
-                data['args']['model_name'] == args.model_name and \
-                data['args']['dataset'] in args.datasets:
+
+            if data['args']['model_name'] == args.model_name and \
+               data['args']['system_message'] == args.system_message and \
+               data['args']['dataset'] == args.dataset and \
+               data['args']['split'] == args.split and \
+               data['args']['task'] == args.task and \
+               data['args']['task_config'] == args.task_config:
+                data['args']['task_config'] = '-'.join(data['args']['task_config'])
                 results.append(data)
 
         # Convert results into a flat DataFrame
@@ -90,6 +121,16 @@ if __name__ == "__main__":
 
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
+        df = df.groupby([
+            'args.model_name', 'args.system_message',
+            'args.task', 'args.task_config',
+            'args.dataset', 'args.split',
+            'args.seed',
+            'results.answer.ability', 'results.answer.sentiment'],
+            as_index=False
+        ).agg({
+            'results.answer.count': 'sum'
+        })
 
         p = (
             p9.ggplot(df, p9.aes(x='results.answer.sentiment')) +
@@ -98,6 +139,7 @@ if __name__ == "__main__":
 
         if args.format == 'paper':
             size = (3.03209, 3.5)
+            p += p9.guides(fill=p9.guide_legend(ncol=2))
             p += p9.theme(
                 text=p9.element_text(size=10, fontname='Times New Roman'),
                 legend_box_margin=0,
@@ -105,6 +147,9 @@ if __name__ == "__main__":
                 legend_background=p9.element_rect(fill='#F2F2F2'),
                 axis_text_x=p9.element_text(angle = 60, hjust=1)
             )
+        else:
+            raise ValueError('unknown format')
 
         os.makedirs(args.persistent_dir / 'plots' / args.format, exist_ok=True)
-        p.save(args.persistent_dir / 'plots'/ args.format / f'{experiment_id}.pdf', width=size[0], height=size[1], units='in')
+        p.save(args.persistent_dir / 'plots'/ args.format / f'{experiment_id}.pdf',
+               width=size[0], height=size[1], units='in')
