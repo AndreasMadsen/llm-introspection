@@ -1,7 +1,10 @@
 
 __all__ = ['ChatHistory', 'DatasetCategories', 'GenerateConfig', 'GenerateResponse', 'DatasetSplits',
            'Observation', 'SentimentObservation', 'TaskResult', 'PartialIntrospectResult', 'IntrospectResult',
-           'SystemMessage', 'GenerateError', 'OfflineError', 'PartialFaithfulResult', 'FaithfulResult', 'TaskCategories']
+           'SystemMessage', 'GenerateError', 'OfflineError', 'PartialFaithfulResult', 'FaithfulResult',
+           'TaskCategories', 'AggregateAnswer', 'AggregateResult',
+           'IntrospectAggregateAnswer', 'IntrospectAggregateResult',
+           'FaithfulAggregateAnswer', 'FaithfulAggregateResult']
 
 from .chat_history import ChatHistory
 from .dataset_categories import DatasetCategories
@@ -13,3 +16,6 @@ from .task_results import TaskResult, \
     PartialFaithfulResult, FaithfulResult
 from .task_categories import TaskCategories
 from .system_message import SystemMessage
+from .task_aggregate import AggregateAnswer, AggregateResult, \
+    IntrospectAggregateAnswer, IntrospectAggregateResult, \
+    FaithfulAggregateAnswer, FaithfulAggregateResult
