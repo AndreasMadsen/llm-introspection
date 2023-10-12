@@ -1,14 +1,17 @@
 
 from abc import ABCMeta, abstractmethod
-from typing import TypeVar, Generic, Hashable, TypedDict, Mapping, Literal
+from typing import TypeVar, Generic, Hashable, Literal
 from collections import defaultdict
 
-from ..types import GenerateError, TaskResult, IntrospectResult, FaithfulResult
+from ..types import GenerateError, \
+    IntrospectAggregateAnswer, IntrospectAggregateResult, IntrospectResult, \
+    FaithfulAggregateAnswer, FaithfulAggregateResult, FaithfulResult
 
-ResultAnswerType = TypeVar('ResultAnswerType', bound=TaskResult)
+ResultAnswerType = TypeVar('ResultAnswerType', IntrospectResult, FaithfulResult)
+AggregateAnswerType = TypeVar('AggregateAnswerType', IntrospectAggregateAnswer, FaithfulAggregateAnswer)
 FeatureColumnType = TypeVar('FeatureColumnType', bound=str)
 
-class TableCounter(Generic[FeatureColumnType, ResultAnswerType]):
+class TableCounter(Generic[FeatureColumnType, AggregateAnswerType, ResultAnswerType]):
     _feature_columns: tuple[FeatureColumnType, ...]
     _counts: dict[tuple[Hashable, ...], int]
 
@@ -20,22 +23,17 @@ class TableCounter(Generic[FeatureColumnType, ResultAnswerType]):
         key = tuple(observation.get(c) for c in self._feature_columns)
         self._counts[key] += 1
 
-    def as_table(self) -> list[Mapping[FeatureColumnType|Literal['count'], Hashable]]:
-        table: list[Mapping[FeatureColumnType|Literal['count'], Hashable]] = []
+    def as_table(self) -> list[AggregateAnswerType]:
+        table: list[AggregateAnswerType] = []
         for column_values, count in self._counts.items():
-            row: dict[FeatureColumnType|Literal['count'], Hashable] = { 'count': count }
+            row: dict[str, Hashable] = { 'count': count }
             for column_name, column_value in zip(self._feature_columns, column_values):
                 row[column_name] = column_value
-            table.append(row)
+            table.append(row) # type: ignore
 
         return table
 
-class AbstractAggregateResult(Generic[FeatureColumnType], TypedDict):
-    answer: list[Mapping[FeatureColumnType|Literal['count'], Hashable]]
-    error: int
-    total: int
-
-AggregateResultType = TypeVar('AggregateResultType', bound=AbstractAggregateResult)
+AggregateResultType = TypeVar('AggregateResultType', IntrospectAggregateResult, FaithfulAggregateResult)
 
 class AbstractAggregator(Generic[ResultAnswerType, AggregateResultType], metaclass=ABCMeta):
     _duration: float
@@ -73,13 +71,8 @@ class AbstractAggregator(Generic[ResultAnswerType, AggregateResultType], metacla
     def results(self) -> AggregateResultType:
         ...
 
-class IntrospectAggregateResult(AbstractAggregateResult[Literal['label', 'sentiment', 'ability']]):
-    introspect: int
-    correct: int
-    missmatch: int
-
 class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggregateResult]):
-    _answer_counts: TableCounter[Literal['label', 'sentiment', 'ability'], IntrospectResult]
+    _answer_counts: TableCounter[Literal['label', 'sentiment', 'ability'], IntrospectAggregateAnswer, IntrospectResult]
 
     def __init__(self) -> None:
         super().__init__()
@@ -112,13 +105,8 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
             'total': self._total_count
         }
 
-class FaithfulAggregateResult(AbstractAggregateResult[Literal['label', 'sentiment', 'explain_sentiment']]):
-    faithful: int
-    correct: int
-    missmatch: int
-
 class FaithfulAggregator(AbstractAggregator[FaithfulResult, FaithfulAggregateResult]):
-    _answer_counts: TableCounter[Literal['label', 'sentiment', 'explain_sentiment'], FaithfulResult]
+    _answer_counts: TableCounter[Literal['label', 'sentiment', 'explain_sentiment'], FaithfulAggregateAnswer, FaithfulResult]
 
     def __init__(self) -> None:
         super().__init__()
