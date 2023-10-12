@@ -23,14 +23,16 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
     _split_valid: str
     _split_test: str
 
-    def __init__(self, persistent_dir: pathlib.Path):
+    def __init__(self, persistent_dir: pathlib.Path, seed: int|None = None):
         """Class describing the semantics of a dataset.
 
         Args:
             persistent_dir (pathlib.Path): Persistent directory, used for storing the dataset.
+            seed (int, optional): Seed used to shuffle the data. Default None.
         """
         self._builder_cache = self._builder(cache_dir=persistent_dir / 'cache' / 'datasets')
         self._persistent_dir = persistent_dir
+        self._seed = seed
 
         if not isinstance(self.info.features, dict):
             raise ValueError('this dataset does not havce features defined')
@@ -84,7 +86,9 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         self._builder_cache.download_and_prepare()
 
     def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
-        return dataset.map(self._restructure, with_indices=True, remove_columns=dataset.column_names) # type: ignore
+        return dataset \
+            .map(self._restructure, with_indices=True, remove_columns=dataset.column_names) \
+            .shuffle(seed=self._seed) # type: ignore
 
     def num_examples(self, split: DatasetSplits):
         """Number of observations for a given split"""
