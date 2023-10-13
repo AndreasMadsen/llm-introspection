@@ -1,6 +1,12 @@
 
-from ..types import IntrospectResult, FaithfulResult, TaskCategories
+from ..types import ClassifyResult, IntrospectResult, FaithfulResult, TaskCategories
 from ._result_dataset import ResultDatabase
+
+class Classify(ResultDatabase[ClassifyResult]):
+    task = TaskCategories.CLASSIFY
+
+    _result_type = ClassifyResult
+    _table_name = 'Classify'
 
 class Answerable(ResultDatabase[IntrospectResult]):
     task = TaskCategories.ANSWERABLE

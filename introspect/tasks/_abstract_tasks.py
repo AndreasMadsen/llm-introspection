@@ -7,16 +7,17 @@ from introspect.model import AbstractModel
 
 from ..types import DatasetCategories, TaskCategories, \
     Observation, TaskResult, \
+    PartialClassifyResult, ClassifyResult, \
     PartialIntrospectResult, IntrospectResult, \
     PartialFaithfulResult, FaithfulResult
 
 from ._request_capture import RequestCapture
-from ._aggregator import AbstractAggregator, IntrospectAggregator, FaithfulAggregator
+from ._aggregator import AbstractAggregator, ClassifyAggregator, IntrospectAggregator, FaithfulAggregator
 
 DatasetType = TypeVar('DatasetType', bound=AbstractDataset)
 ObservationType = TypeVar('ObservationType', bound=Observation)
-TaskResultType = TypeVar('TaskResultType', IntrospectResult, FaithfulResult)
-PartialTaskResultType = TypeVar('PartialTaskResultType', PartialIntrospectResult, PartialFaithfulResult)
+TaskResultType = TypeVar('TaskResultType', ClassifyResult, IntrospectResult, FaithfulResult)
+PartialTaskResultType = TypeVar('PartialTaskResultType', PartialClassifyResult, PartialIntrospectResult, PartialFaithfulResult)
 
 class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, TaskResultType], metaclass=ABCMeta):
     _dataset: DatasetType
@@ -93,6 +94,13 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
             'label': self._dataset.label_int2str[observation['label']],
             'duration': capture.duration
         })
+
+class ClassifyTask(AbstractTask[DatasetType, ObservationType, PartialClassifyResult, ClassifyResult]):
+    def make_aggregator(self) -> ClassifyAggregator:
+        return ClassifyAggregator()
+
+    def _make_task_result(self, partial_result, default_result) -> ClassifyResult:
+        return { **partial_result, **default_result }
 
 class IntrospectTask(AbstractTask[DatasetType, ObservationType, PartialIntrospectResult, IntrospectResult]):
     def make_aggregator(self) -> IntrospectAggregator:

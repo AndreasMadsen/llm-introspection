@@ -4,11 +4,12 @@ from typing import TypeVar, Generic, Hashable, Literal
 from collections import defaultdict
 
 from ..types import GenerateError, \
+    ClassifyAggregateAnswer, ClassifyAggregateResult, ClassifyResult, \
     IntrospectAggregateAnswer, IntrospectAggregateResult, IntrospectResult, \
     FaithfulAggregateAnswer, FaithfulAggregateResult, FaithfulResult
 
-ResultAnswerType = TypeVar('ResultAnswerType', IntrospectResult, FaithfulResult)
-AggregateAnswerType = TypeVar('AggregateAnswerType', IntrospectAggregateAnswer, FaithfulAggregateAnswer)
+ResultAnswerType = TypeVar('ResultAnswerType', ClassifyResult, IntrospectResult, FaithfulResult)
+AggregateAnswerType = TypeVar('AggregateAnswerType', ClassifyAggregateAnswer, IntrospectAggregateAnswer, FaithfulAggregateAnswer)
 FeatureColumnType = TypeVar('FeatureColumnType', bound=str)
 
 class TableCounter(Generic[FeatureColumnType, AggregateAnswerType, ResultAnswerType]):
@@ -33,7 +34,7 @@ class TableCounter(Generic[FeatureColumnType, AggregateAnswerType, ResultAnswerT
 
         return table
 
-AggregateResultType = TypeVar('AggregateResultType', IntrospectAggregateResult, FaithfulAggregateResult)
+AggregateResultType = TypeVar('AggregateResultType', ClassifyAggregateResult, IntrospectAggregateResult, FaithfulAggregateResult)
 
 class AbstractAggregator(Generic[ResultAnswerType, AggregateResultType], metaclass=ABCMeta):
     _duration: float
@@ -70,6 +71,37 @@ class AbstractAggregator(Generic[ResultAnswerType, AggregateResultType], metacla
     @abstractmethod
     def results(self) -> AggregateResultType:
         ...
+
+class ClassifyAggregator(AbstractAggregator[ClassifyResult, ClassifyAggregateResult]):
+    _answer_counts: TableCounter[Literal['label', 'sentiment'], ClassifyAggregateAnswer, ClassifyResult]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._answer_counts = TableCounter(('label', 'sentiment'))
+        self._correct_count = 0
+        self._missmatch_count = 0
+
+    def _add_answer(self, answer: IntrospectResult):
+        if answer['correct'] is None:
+            self._missmatch_count += 1
+        else:
+            self._correct_count += answer['correct']
+            self._answer_counts.increment(answer)
+
+    @property
+    def progress_description(self) -> str:
+        return f'Processing[C={self._correct_count}, M={self._missmatch_count}, E={self._error_count}]'
+
+    @property
+    def results(self) -> ClassifyAggregateResult:
+        return {
+            'answer': self._answer_counts.as_table(),
+            'correct': self._correct_count,
+            'missmatch': self._missmatch_count,
+            'error': self._error_count,
+            'total': self._total_count
+        }
 
 class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggregateResult]):
     _answer_counts: TableCounter[Literal['label', 'sentiment', 'ability'], IntrospectAggregateAnswer, IntrospectResult]

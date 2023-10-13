@@ -3,7 +3,7 @@ from typing import Literal
 
 from ._abstract_tasks import \
     AbstractTask, \
-    IntrospectTask, FaithfulTask, \
+    ClassifyTask, IntrospectTask, FaithfulTask, \
     TaskResultType, PartialTaskResultType
 from ._request_capture import RequestCapture
 
@@ -11,6 +11,7 @@ from ..dataset import SentimentDataset
 from ..types import \
     TaskCategories, DatasetCategories, \
     SentimentObservation, \
+    PartialClassifyResult, ClassifyResult, \
     PartialIntrospectResult, IntrospectResult, \
     PartialFaithfulResult, FaithfulResult
 
@@ -92,6 +93,20 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             extract = None
 
         return extract
+
+class SentimentClassifyTask(ClassifyTask[SentimentDataset, SentimentObservation],
+                            SentimentTask[PartialClassifyResult, ClassifyResult]):
+    task_category = TaskCategories.CLASSIFY
+
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialClassifyResult:
+        sentiment_source, sentiment = await self._sentiment(observation['text'], generate_text)
+        correct = self._is_correct(observation, sentiment)
+
+        return {
+            'sentiment_source': sentiment_source,
+            'sentiment': sentiment,
+            'correct': correct
+        }
 
 class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservation],
                               SentimentTask[PartialIntrospectResult, IntrospectResult]):
