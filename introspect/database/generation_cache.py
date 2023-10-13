@@ -2,9 +2,17 @@
 from pathlib import Path
 import pickle
 from traceback import format_exception
+from typing import AsyncIterator
 
 from ._abstract_dataset import AbstractDatabase
 from ..types import GenerateResponse, GenerateError
+
+def _database_to_filepath(database: str, directory: Path|None):
+    if directory is None:
+        filepath = database
+    else:
+        filepath = (directory / database).with_suffix('.sqlite')
+    return filepath
 
 class GenerationCache(AbstractDatabase):
     _setup_sql = '''
@@ -28,13 +36,40 @@ class GenerationCache(AbstractDatabase):
         FROM Cache
         WHERE prompt = ?
     '''
+    _iter_sql = '''
+        SELECT prompt, response, duration, error
+        FROM Cache
+    '''
 
-    def __init__(self, database: str, persistent_dir: Path|None=None, **kwargs) -> None:
-        if persistent_dir is None:
-            filepath = database
-        else:
-            filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
-        super().__init__(filepath, **kwargs)
+    def __init__(self, database: str, cache_dir: Path|None=None, deps: list[str]=[], **kwargs) -> None:
+        self._database = database
+        self._deps = deps
+        self._cache_dir = cache_dir
+
+        super().__init__(_database_to_filepath(database, cache_dir), **kwargs)
+
+    async def open(self) -> bool:
+        is_new = await super().open()
+
+        # if it is a new database, bootstrap the database using the dependencies
+        if is_new:
+            for dep in self._deps:
+                # prevent cloneing itself
+                if dep == self._database:
+                    continue
+
+                # copy over content
+                async with GenerationCache(dep, self._cache_dir) as source_db:
+                    async for prompt, answer in source_db:
+                        await self.put(prompt, answer)
+
+        return is_new
+
+    async def __aiter__(self) -> AsyncIterator[tuple[str, GenerateResponse|GenerateError]]:
+        cursor = await self._con.execute(self._iter_sql)
+        async for row in cursor:
+            prompt, response, duration, error = row
+            yield (prompt, self._unpack_results(response, duration, error))
 
     async def put(self, prompt: str, answer: GenerateResponse|GenerateError) -> None:
         """Add or update an entry to the database
@@ -94,9 +129,13 @@ class GenerationCache(AbstractDatabase):
         if results is None:
             return None
 
-        response, duration, error = results
+        return self._unpack_results(*results)
+
+    def _unpack_results(self, response: str|None, duration: float|None, error: bytes|None) -> GenerateResponse|GenerateError:
         if error is not None:
             return pickle.loads(error)
+        if response is None or duration is None:
+            raise IOError(f'unexpected database content: {response=}, {duration=}')
 
         return {
             'response': response,
