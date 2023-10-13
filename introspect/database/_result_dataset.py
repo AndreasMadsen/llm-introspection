@@ -35,32 +35,15 @@ def _simplify_type(type_def) -> Type[float]|Type[int]|Type[bool]|Type[str]:
 TaskResultType = TypeVar('TaskResultType', bound=TaskResult)
 
 class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
+    """Create Database to store results
+
+    This class uses a TypedDict (TaskResultType) to define the database schema. All SQL
+    queries are templated based on this TypedDict.
+    """
     task: TaskCategories
 
     _result_type: Type[TaskResultType]
     _table_name: str
-
-    def __init__(self, database: str, persistent_dir: Path|None=None, **kwargs) -> None:
-        """Create Database to store results
-
-        This class uses a TypedDict (TaskResultType) to define the database schema. All SQL
-            queries are templated based on this TypedDict.
-
-        Example:
-            async with Database(':memory:') as db:
-                print(await db.has(0))
-
-        Args:
-            database (str): The name of the database or an in-memory address.
-            persistent_dir (Path, optional): The directory where the database is stored. Default to None.
-            min_commit_transactions (int, optional): The minimum number of transactions before commiting
-                to the database on disk.
-        """
-        if persistent_dir is None:
-            filepath = database
-        else:
-            filepath = (persistent_dir / 'database' / database).with_suffix('.sqlite')
-        super().__init__(filepath, **kwargs)
 
     @cached_property
     def _table_def(self) -> dict[str, Type[str]|Type[bool]|Type[int]|Type[float]]:

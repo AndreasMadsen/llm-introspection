@@ -148,10 +148,16 @@ async def main():
     os.makedirs(args.persistent_dir / 'results' / 'analysis', exist_ok=True)
 
     # setup database
-    database = result_databases[args.task](experiment_id, persistent_dir=args.persistent_dir)
-    cache = GenerationCache(
-        generate_experiment_id('cache', args.model_name, args.system_message, args.dataset, args.seed),
-        persistent_dir=args.persistent_dir)
+    database = result_databases[args.task](
+        (args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.sqlite')
+    )
+    cache = GenerationCache(experiment_id, cache_dir=args.persistent_dir / 'database', deps=[
+        generate_experiment_id('analysis',
+                               model=args.model_name, system_message=args.system_message,
+                               dataset=args.dataset, split=args.split,
+                               task='classify', task_config=[],
+                               seed=args.seed)
+    ])
 
     # setup task
     client = clients[args.client](args.endpoint, cache)

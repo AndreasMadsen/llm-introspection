@@ -48,10 +48,13 @@ class AbstractDatabase(metaclass=ABCMeta):
             await self._commit_task
         await self._schedule_commit()
 
-    async def open(self) -> None:
+    async def open(self) -> bool:
         """Open connection and create databases
 
         Likely this should not be used directly. Instead, use `async with`.
+
+        Returns:
+            bool: return true if a new database was created
         """
         is_new = (not self._filepath.exists()) if isinstance(self._filepath, pathlib.Path) else True
         self._con = await sql.connect(self._filepath)
@@ -62,6 +65,8 @@ class AbstractDatabase(metaclass=ABCMeta):
 
         await self._con.execute(self._setup_sql)
         await self._ensure_commit()
+
+        return is_new
 
     async def commit(self) -> None:
         """Commits  connection
@@ -84,11 +89,11 @@ class AbstractDatabase(metaclass=ABCMeta):
         await self._ensure_commit()
         await self.close()
 
-    async def backup(self, *args) -> None:
+    async def backup(self, target: Self, *args) -> None:
         """Make a backup of the database
         """
         await self._ensure_commit()
-        await self._con.backup(*args)
+        await self._con.backup(target._con, *args)
 
     def remove(self) -> None:
         """Remove database
