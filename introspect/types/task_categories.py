@@ -6,3 +6,4 @@ class TaskCategories(StrEnum):
     ANSWERABLE = 'answerable'
     COUNTERFACTUAL = 'counterfactual'
     REDACTED = 'redacted'
+    IMPORTANT = 'important'
