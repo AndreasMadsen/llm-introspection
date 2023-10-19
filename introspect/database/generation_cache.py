@@ -52,16 +52,15 @@ class GenerationCache(AbstractDatabase):
         is_new = await super().open()
 
         # if it is a new database, bootstrap the database using the dependencies
-        if is_new:
-            for dep in self._deps:
-                # prevent cloneing itself
-                if dep == self._database:
-                    continue
+        for dep in self._deps:
+            # prevent cloneing itself
+            if dep == self._database:
+                continue
 
-                # copy over content
-                async with GenerationCache(dep, self._cache_dir) as source_db:
-                    async for prompt, answer in source_db:
-                        await self.put(prompt, answer)
+            # copy over content
+            async with GenerationCache(dep, self._cache_dir) as source_db:
+                async for prompt, answer in source_db:
+                    await self.put(prompt, answer)
 
         return is_new
 
