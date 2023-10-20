@@ -337,9 +337,9 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
             'faithful': faithful,
         }
 
-class SentimentImportantTask(FaithfulTask[SentimentDataset, SentimentObservation],
-                             SentimentTask[PartialFaithfulResult, FaithfulResult]):
-    task_category = TaskCategories.IMPORTANT
+class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservation],
+                              SentimentTask[PartialFaithfulResult, FaithfulResult]):
+    task_category = TaskCategories.IMPORTANCE
 
     async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
         sentiment_source = await self._query_sentiment(observation['text'], generate_text)
