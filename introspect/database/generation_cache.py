@@ -2,12 +2,20 @@
 from pathlib import Path
 import pickle
 from traceback import format_exception
-from typing import AsyncIterator
+from typing import AsyncIterator, overload
 
 from ._abstract_dataset import AbstractDatabase
 from ..types import GenerateResponse, GenerateError
 
-def _database_to_filepath(database: str, directory: Path|None):
+@overload
+def _database_to_filepath(database: str, directory: Path) -> Path:
+    ...
+
+@overload
+def _database_to_filepath(database: str, directory: None) -> str:
+    ...
+
+def _database_to_filepath(database, directory):
     if directory is None:
         filepath = database
     else:
@@ -51,10 +59,16 @@ class GenerationCache(AbstractDatabase):
     async def open(self) -> bool:
         is_new = await super().open()
 
+        if self._cache_dir is None:
+            return is_new
+
         # if it is a new database, bootstrap the database using the dependencies
         for dep in self._deps:
             # prevent cloneing itself
             if dep == self._database:
+                continue
+
+            if not _database_to_filepath(dep, self._cache_dir).exists():
                 continue
 
             # copy over content
