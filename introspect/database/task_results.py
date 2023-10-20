@@ -26,8 +26,8 @@ class Redacted(ResultDatabase[FaithfulResult]):
     _result_type = FaithfulResult
     _table_name = 'Redacted'
 
-class Important(ResultDatabase[FaithfulResult]):
-    task = TaskCategories.IMPORTANT
+class Importance(ResultDatabase[FaithfulResult]):
+    task = TaskCategories.IMPORTANCE
 
     _result_type = FaithfulResult
-    _table_name = 'Important'
+    _table_name = 'importance'

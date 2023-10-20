@@ -7,10 +7,10 @@ from ..types import TaskCategories
 
 from .generation_cache import GenerationCache
 from ._result_dataset import ResultDatabase
-from .task_results import Classify, Answerable, Counterfactual, Redacted, Important
+from .task_results import Classify, Answerable, Counterfactual, Redacted, Importance
 
 result_databases: Mapping[TaskCategories, Type[ResultDatabase]] = {
     Database.task: Database
     for Database
-    in [Classify, Answerable, Counterfactual, Redacted, Important]
+    in [Classify, Answerable, Counterfactual, Redacted, Importance]
 }
