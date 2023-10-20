@@ -12,16 +12,19 @@ do
     do
         for system_message in 'none' 'default'
         do
-            submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
-                experiments/analysis.py \
-                --task 'classify' \
-                --task-config "${task_config}" \
-                --model-name "${model_name}" \
-                --system-message "${system_message}" \
-                --dataset "${dataset}" \
-                --split 'train' \
-                --seed 0 \
-                --clean-database
+            for task_config in '' 'no-maybe-redacted'
+            do
+                submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
+                    experiments/analysis.py \
+                    --task 'classify' \
+                    --task-config "${task_config}" \
+                    --model-name "${model_name}" \
+                    --system-message "${system_message}" \
+                    --dataset "${dataset}" \
+                    --split 'train' \
+                    --seed 0 \
+                    --clean-database
+            done
             break
         done
         break
