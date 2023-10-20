@@ -26,17 +26,31 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
     async def _query_sentiment(
         self, parahraph: str, generate_text: RequestCapture
     ) -> str:
-        return await generate_text([
-            {
-                'user': (
-                    f'What is the sentiment of the following paragraph?'
-                    f' Answer only "positive", "negative", or "unknown".'
-                    f' Do not explain your answer.\n\n'
-                    f'Paragraph: {parahraph}'
-                ),
-                'assistant': None
-            }
-        ])
+        if self._is_enabled('no-maybe-redacted'):
+            return await generate_text([
+                {
+                    'user': (
+                        f'What is the sentiment of the following paragraph?'
+                        f' Answer only "positive", "negative", "neutral", or "unknown".'
+                        f' Do not explain your answer.\n\n'
+                        f'Paragraph: {parahraph}'
+                    ),
+                    'assistant': None
+                }
+            ])
+        else:
+            return await generate_text([
+                {
+                    'user': (
+                        f'What is the sentiment of the following paragraph?'
+                        f' Answer only "positive", "negative", "neutral", or "unknown".'
+                        f' The paragraph can contain redacted words marked with [REDACTED].'
+                        f' Do not explain your answer.\n\n'
+                        f'Paragraph: {parahraph}'
+                    ),
+                    'assistant': None
+                }
+            ])
 
     def _process_is_correct(self, observation: SentimentObservation, sentiment: Literal['positive', 'negative', 'neutral', 'unknown']|None) -> bool|None:
         match sentiment:
@@ -76,9 +90,11 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             sentiment = 'negative'
         elif _startwith(source, [
             'mixed',
-            'the sentiment of the paragraph is mixed',
             'the sentiment of the paragraph is "mixed"',
-            'the sentiment of the paragraph is "neutral"'
+            'the sentiment of the paragraph is mixed',
+            'neutral',
+            'the sentiment of the paragraph is "neutral"',
+            'the sentiment of the paragraph is neutral'
         ]):
             sentiment = 'neutral'
         elif _startwith(source, [
@@ -174,8 +190,8 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
             ability_source = await generate_text([
                 {
                     'user': (
-                        f'Can you determine the sentiment of the following paragraph?'
-                        f' The sentiment is either "positive", "negative", or "unknown".'
+                        f'Are you able to determine the sentiment of the following paragraph?'
+                        f' The sentiment is either "positive", "negative", "neutral", or "unknown".'
                         f' Answer only "yes" or "no".'
                         f' Do not explain your answer.\n\n' +
                         f'Paragraph: {observation["text"]}'
@@ -187,7 +203,7 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
             ability_source = await generate_text([
                 {
                     'user': (
-                        f'Can you determine the sentiment of the following paragraph?'
+                        f'Are you able to determine the sentiment of the following paragraph?'
                         f' Answer only "yes" or "no".'
                         f' Do not explain your answer.\n\n' +
                         f'Paragraph: {observation["text"]}'
@@ -271,17 +287,31 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        redacted_source = await generate_text([
-            {
-                'user': (
-                    f'Redact the following paragraph such that the sentiment can no longer be determined,'
-                    f' by replacing important words with [REDACTED].'
-                    f' Do not explain your answer.\n\n' +
-                    f'Paragraph: {observation["text"]}'
-                ),
-                'assistant': None
-            }
-        ])
+        if self._is_enabled('explain-para-1'):
+            redacted_source = await generate_text([
+                {
+                    'user': (
+                        f'Redact the following paragraph such that the sentiment can no longer be determined,'
+                        f' by replacing important words with [REDACTED].'
+                        f' Do not explain your answer.\n\n' +
+                        f'Paragraph: {observation["text"]}'
+                    ),
+                    'assistant': None
+                }
+            ])
+        else:
+            redacted_source = await generate_text([
+                {
+                    'user': (
+                        f'Redact the most important words for determining the sentiment of the following paragraph,'
+                        f' by replacing them with [REDACTED],'
+                        f' such that without these words the sentiment can not be determined.'
+                        f' Do not explain your answer.\n\n' +
+                        f'Paragraph: {observation["text"]}'
+                    ),
+                    'assistant': None
+                }
+            ])
 
         # The redacted_source tends to have the format:
         # Paragraph: The movie was [Redacted] ...
