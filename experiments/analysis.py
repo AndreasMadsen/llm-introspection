@@ -158,7 +158,9 @@ async def main():
                                task='classify', task_config=classify_task_config,
                                seed=args.seed)
 
-        for classify_task_config in (['no-maybe-redacted'], [])
+        for classify_task_config in (
+            tuple() if args.task == TaskCategories.CLASSIFY else (['no-maybe-redacted'], [])
+        )
     ])
 
     # setup task

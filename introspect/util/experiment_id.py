@@ -18,7 +18,7 @@ def generate_experiment_id(name: str,
         system_message (str, optional): the system message mode.
         dataset (str, optional): the name of the dataset.
         split (str, optional): the dataset split.
-        task (str, optional): which task to run.
+        task (str, optional): the task to run.
         task_config (list[str], optional): the configuration options for this task.
         seed (int, optional): the generation seed.
     Returns:
