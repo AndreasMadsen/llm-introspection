@@ -11,15 +11,13 @@ class AbstractDatabase(metaclass=ABCMeta):
     _setup_sql: str
     _con: sql.Connection
 
-    def __init__(self, filepath: pathlib.Path|str, min_commit_transactions=100) -> None:
-        """Create Database to store results
-
-        Example:
-        async with Database(':memory:') as db:
-            print(await db.has(0))
+    def __init__(self, filepath: pathlib.Path|str, min_commit_transactions: int=100) -> None:
+        """Create Database
 
         Args:
             filepath (pathlib.Path | str): A filepath or in-memory address, where the database is stored
+            min_commit_transactions (int, optional): The minimum number of transactions before commiting
+                to the database on disk. Default to 100.
         """
         self._filepath = filepath
         self._min_commit_transactions = min_commit_transactions
@@ -50,10 +48,13 @@ class AbstractDatabase(metaclass=ABCMeta):
             await self._commit_task
         await self._schedule_commit()
 
-    async def open(self) -> None:
+    async def open(self) -> bool:
         """Open connection and create databases
 
         Likely this should not be used directly. Instead, use `async with`.
+
+        Returns:
+            bool: return true if a new database was created
         """
         is_new = (not self._filepath.exists()) if isinstance(self._filepath, pathlib.Path) else True
         self._con = await sql.connect(self._filepath)
@@ -64,6 +65,8 @@ class AbstractDatabase(metaclass=ABCMeta):
 
         await self._con.execute(self._setup_sql)
         await self._ensure_commit()
+
+        return is_new
 
     async def commit(self) -> None:
         """Commits  connection
@@ -86,11 +89,11 @@ class AbstractDatabase(metaclass=ABCMeta):
         await self._ensure_commit()
         await self.close()
 
-    async def backup(self, *args) -> None:
+    async def backup(self, target: Self, *args) -> None:
         """Make a backup of the database
         """
         await self._ensure_commit()
-        await self._con.backup(*args)
+        await self._con.backup(target._con, *args)
 
     def remove(self) -> None:
         """Remove database

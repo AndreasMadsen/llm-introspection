@@ -1,7 +1,9 @@
 
 from typing import TypedDict, Required
 
-class SentimentObservation(TypedDict):
-    text: Required[str]
+class Observation(TypedDict):
     label: Required[int]
     idx: Required[int]
+
+class SentimentObservation(Observation):
+    text: Required[str]

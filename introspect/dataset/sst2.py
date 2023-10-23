@@ -1,7 +1,9 @@
 
 import datasets
+from typing import Mapping, Literal
+from functools import cached_property
 
-from ._categories import SentimentDataset, SentimentLabels
+from ._categories import SentimentDataset
 from ..types import SentimentObservation
 
 class SST2Dataset(SentimentDataset):
@@ -11,10 +13,11 @@ class SST2Dataset(SentimentDataset):
     _split_valid = 'train[80%:]'
     _split_test = 'validation'
 
-    def _labels(self, label_def) -> SentimentLabels:
+    @cached_property
+    def label_str2int(self) -> Mapping[Literal['negative', 'positive'], int]:
         return {
-            'negative': label_def.names.index('negative'),
-            'positive': label_def.names.index('positive')
+            'negative': self._label_def.names.index('negative'),
+            'positive': self._label_def.names.index('positive')
         }
 
     def _builder(self, cache_dir):

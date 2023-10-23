@@ -1,36 +1,38 @@
 import pathlib
 from functools import cached_property
 from abc import ABCMeta, abstractmethod
-from typing import Any, TypeVar, Iterable, Generic, TypedDict
+from typing import Any, TypeVar, Iterable, Generic, Mapping
 from collections.abc import Iterable
 
 import datasets
 
-from ..types import DatasetCategories, DatasetSplits
+from ..types import DatasetCategories, DatasetSplits, Observation
 
-ObservationType = TypeVar('ObservationType', bound=TypedDict)
-LabelDefType = TypeVar('LabelDefType', bound=TypedDict)
+ObservationType = TypeVar('ObservationType', bound=Observation)
+LabelNamesType = TypeVar('LabelNamesType', bound=str)
 
-class AbstractDataset(Generic[ObservationType, LabelDefType], metaclass=ABCMeta):
+class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMeta):
     name: str
     category: DatasetCategories
-    labels: LabelDefType
 
     _persistent_dir: pathlib.Path
     _target_name: str = 'label'
+    _label_def: datasets.ClassLabel
 
     _split_train: str
     _split_valid: str
     _split_test: str
 
-    def __init__(self, persistent_dir: pathlib.Path):
+    def __init__(self, persistent_dir: pathlib.Path, seed: int|None = None):
         """Class describing the semantics of a dataset.
 
         Args:
             persistent_dir (pathlib.Path): Persistent directory, used for storing the dataset.
+            seed (int, optional): Seed used to shuffle the data. Default None.
         """
         self._builder_cache = self._builder(cache_dir=persistent_dir / 'cache' / 'datasets')
         self._persistent_dir = persistent_dir
+        self._seed = seed
 
         if not isinstance(self.info.features, dict):
             raise ValueError('this dataset does not havce features defined')
@@ -38,11 +40,18 @@ class AbstractDataset(Generic[ObservationType, LabelDefType], metaclass=ABCMeta)
         if self._target_name not in self.info.features:
             raise ValueError(f'the dataset._target_name ("{self._target_name}") feature does not exists')
 
-        self.labels = self._labels(self.info.features[self._target_name])
+        self._label_def = self.info.features[self._target_name]
 
+    @cached_property
     @abstractmethod
-    def _labels(self, label_def: datasets.ClassLabel) -> LabelDefType:
+    def label_str2int(self) -> Mapping[LabelNamesType, int]:
         ...
+
+    @cached_property
+    def label_int2str(self) -> Mapping[int, LabelNamesType]:
+        return {
+            value: name for name, value in self.label_str2int.items()
+        }
 
     @abstractmethod
     def _builder(self, cache_dir: pathlib.Path) -> datasets.DatasetBuilder:
@@ -77,7 +86,9 @@ class AbstractDataset(Generic[ObservationType, LabelDefType], metaclass=ABCMeta)
         self._builder_cache.download_and_prepare()
 
     def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
-        return dataset.map(self._restructure, with_indices=True, remove_columns=dataset.column_names) # type: ignore
+        return dataset \
+            .map(self._restructure, with_indices=True, remove_columns=dataset.column_names) \
+            .shuffle(seed=self._seed) # type: ignore
 
     def num_examples(self, split: DatasetSplits):
         """Number of observations for a given split"""
