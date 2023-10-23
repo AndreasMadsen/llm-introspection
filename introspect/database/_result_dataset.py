@@ -22,8 +22,11 @@ def _to_bool(value: int|None) -> bool|None:
     return bool(value)
 
 def _simplify_type(type_def) -> Type[float]|Type[int]|Type[bool]|Type[str]:
-    if type_def is float or type_def is int or type_def is bool or type_def is str:
+    # if the type is already simple, stop
+    if type_def in (float, int, bool, str):
         return type_def
+
+    # check for Literal['A', 'B']
     elif typing.get_origin(type_def) is typing.Literal:
         options = typing.get_args(type_def)
         if not all(isinstance(option, str) for option in options):
