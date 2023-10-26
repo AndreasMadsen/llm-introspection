@@ -64,7 +64,7 @@ parser.add_argument('--split',
                     help='The dataset split to evaluate on')
 parser.add_argument('--task',
                     action='store',
-                    default=TaskCategories.ANSWERABLE,
+                    default=TaskCategories.CLASSIFY,
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args, unknown = parser.parse_known_args()
 
-    experiment_id = generate_experiment_id('introspect',
+    experiment_id = generate_experiment_id('classify',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
         task=args.task,
@@ -114,20 +114,10 @@ if __name__ == "__main__":
 
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
-        df = df.groupby([
-            'args.model_name', 'args.system_message',
-            'args.task', 'args.task_config',
-            'args.dataset', 'args.split',
-            'args.seed',
-            'results.answer.ability', 'results.answer.sentiment'],
-            as_index=False
-        ).agg({
-            'results.answer.count': 'sum'
-        })
 
         p = (
             p9.ggplot(df, p9.aes(x='results.answer.sentiment')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.ability'), stat="identity") +
+            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.label'), stat="identity") +
             p9.facet_grid('. ~ args.task_config')
         )
 
