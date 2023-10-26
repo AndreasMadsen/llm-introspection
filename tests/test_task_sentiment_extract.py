@@ -168,11 +168,23 @@ def test_task_sentiment_extract_list_content(task: SentimentClassifyTask):
              '1. Awful\n'
              '2. Worst') == ['Awful', 'Worst']
 
-    # unordered
+    # unordered *
     assert c('Sure, here are the most important words for determining the sentiment of the paragraph:\n'
              '\n'
              '* Awful\n'
              '* Worst') == ['Awful', 'Worst']
+
+    # unordered -
+    assert c('Sure, here are the most important words for determining the sentiment of the paragraph:\n'
+             '\n'
+             '- Awful\n'
+             '- Worst') == ['Awful', 'Worst']
+
+    # no space
+    assert c('Sure, here are the most important words for determining the sentiment of the paragraph:\n'
+             '\n'
+             '*Awful\n'
+             '*Worst') == ['Awful', 'Worst']
 
     # qouted
     assert c('Sure! Here are the most important words for determining the sentiment of the paragraph:\n'

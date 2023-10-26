@@ -151,11 +151,12 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
         # 3. "fun" (appears twice)
         list_content = []
         for line in source.splitlines():
-            if m := re.match(r'^(?:\d+\.|\*|•)[ \t]+(.*)$', line):
+            if m := re.match(r'^(?:\d+\.|\*|•|-)[ \t]*(.*)$', line):
                 content, = m.groups()
                 if content.startswith('"') and (endqoute_pos := content.rfind('"')) > 0:
-                    list_content.append(content[1:endqoute_pos])
-                else:
+                    content = content[1:endqoute_pos]
+
+                if len(content) > 0:
                     list_content.append(content)
 
         if len(list_content) == 0:
