@@ -2,7 +2,6 @@
 #SBATCH -J unamed-introspect-job
 #SBATCH --output=%x.%j.out
 #SBATCH --account=rrg-bengioy-ad
-#SBATCH --exclusive
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=a100:4
@@ -33,7 +32,7 @@ model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_ar
 MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 \
     VALIDATION_WORKERS=4 PORT=$tgi_port \
     MODEL_ID="${model_id[$model_name]}" \
-    bash tgi/tgi-server-cc.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
+    MAX_RESTARTS=3 bash monitor.sh bash tgi/tgi-server-cc.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
 TGI_PID=$!
 
 # Create enviorment

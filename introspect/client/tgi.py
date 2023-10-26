@@ -5,9 +5,8 @@ import aiohttp
 import asyncio
 
 from ..types import GenerateConfig, GenerateError
-from ._abstract_client import AbstractClient
-from text_generation.errors import parse_error, ValidationError
-from text_generation.types import Response
+from ._abstract_client import AbstractClient, RetryRequest
+from text_generation.errors import parse_error, ValidationError, GenerationError
 
 
 class TGIInfo(TypedDict):
@@ -119,5 +118,7 @@ class TGIClient(AbstractClient[TGIInfo]):
 
                     return answer[0]['generated_text']
 
-        except (ValidationError, asyncio.TimeoutError) as err:
+        except ValidationError as err:
             raise GenerateError('LLM generate failed') from err
+        except (asyncio.TimeoutError, aiohttp.ClientOSError, aiohttp.ServerDisconnectedError, GenerationError) as err:
+            raise RetryRequest('Connection error') from err

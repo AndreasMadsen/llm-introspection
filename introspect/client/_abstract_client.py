@@ -9,20 +9,26 @@ from ..database import GenerationCache
 
 InfoType = TypeVar('InfoType', bound=TypedDict)
 
+class RetryRequest(Exception):
+    pass
+
 class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
-    def __init__(self, base_url: str, cache: GenerationCache|None = None, connect_timeout_sec: int=30*60) -> None:
+    def __init__(self, base_url: str, cache: GenerationCache|None = None,
+                 connect_timeout_sec: int=30*60, max_reconnects: int=3) -> None:
         """Create a client that can be used to run a generative inference
 
         Args:
             base_url (str): The url to the endpoint. For example: "http://localhost:8080"
             cache (GenerationCache | None, optional): Cache where generation outputs are stored. Defaults to None.
-            connect_timeout_sec (int, optional): _description_. Defaults to 30*60.
+            connect_timeout_sec (int, optional): How long to wait for the server to start. Defaults to 30*60.
+            max_reconnects (int, optional): The number of times the connection can be lost. Default to 3.
         """
         self._base_url = base_url
         self._connect_timeout_sec = connect_timeout_sec
         self._cache = cache
         self._is_connected = False
         self._on_connection = None
+        self._remaning_reconnects = max_reconnects
 
     async def _get_cache(self, prompt) -> None|GenerateResponse|GenerateError:
         if self._cache is None:
@@ -52,6 +58,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         while time.time() < start_time + self._connect_timeout_sec:
             if await self._try_connect():
                 self._is_connected = True
+                print('connection made')
                 return
 
             await asyncio.sleep(10)
@@ -64,6 +71,18 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         if self._on_connection is None:
             self._on_connection = asyncio.create_task(self._await_connection())
         await self._on_connection
+
+    def _handle_disconnect(self):
+        """Renew state assuming the connection is lost
+        """
+        print('handle disconnect')
+        if self._remaning_reconnects <= 0:
+            raise IOError('Exhaused all allowed reconnection attempts')
+
+        if self._is_connected:
+            self._is_connected = False
+            self._remaning_reconnects -= 1
+            self._on_connection = asyncio.create_task(self._await_connection())
 
     async def info(self) -> InfoType:
         """Get info about server
@@ -117,6 +136,10 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
             }
         except GenerateError as error:
             computed_answer: GenerateResponse|GenerateError = error
+        except RetryRequest as error:
+            # The _generate failed and requested a reconnect.
+            self._handle_disconnect()
+            return await self.generate(prompt, config)
 
         match computed_answer:
             case OfflineError():
