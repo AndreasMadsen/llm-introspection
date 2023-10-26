@@ -68,12 +68,6 @@ parser.add_argument('--task',
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
-parser.add_argument('--task-config',
-                    action='store',
-                    nargs='+',
-                    default=[],
-                    type=str,
-                    help='List of configuration options for selected task')
 parser.add_argument('--seed',
                     action='store',
                     default=0,
@@ -87,7 +81,7 @@ if __name__ == "__main__":
     experiment_id = generate_experiment_id('faithful',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
-        task=args.task, task_config=args.task_config,
+        task=args.task,
         seed=args.seed)
 
     if args.stage in ['both', 'preprocess']:
@@ -106,8 +100,7 @@ if __name__ == "__main__":
                data['args']['system_message'] == args.system_message and \
                data['args']['dataset'] == args.dataset and \
                data['args']['split'] == args.split and \
-               data['args']['task'] == args.task and \
-               data['args']['task_config'] == args.task_config:
+               data['args']['task'] == args.task:
                 data['args']['task_config'] = '-'.join(data['args']['task_config'])
                 results.append(data)
 
@@ -134,7 +127,8 @@ if __name__ == "__main__":
 
         p = (
             p9.ggplot(df, p9.aes(x='results.answer.sentiment')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.explain_sentiment'), stat="identity")
+            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.explain_sentiment'), stat="identity") +
+            p9.facet_grid('. ~ args.task_config')
         )
 
         if args.format == 'paper':
