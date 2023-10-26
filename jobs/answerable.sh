@@ -24,7 +24,6 @@ do
                     --split 'train' \
                     --seed 0 \
                     --clean-database
-                break
             done
             break
         done

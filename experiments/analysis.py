@@ -27,12 +27,12 @@ parser.add_argument('--persistent-dir',
                     help='Directory where all persistent data will be stored')
 parser.add_argument('--endpoint',
                     action='store',
-                    default='http://127.0.0.1:20002',
+                    default='http://127.0.0.1:20001',
                     type=str,
                     help='The TGI endpoint for this model')
 parser.add_argument('--client',
                     action='store',
-                    default='TGI',
+                    default='Offline' if 'RUN_OFFLINE' in os.environ else 'TGI',
                     type=str,
                     choices=clients.keys(),
                     help='Which client to use, either TGI or VLLM')
