@@ -1,7 +1,9 @@
 
 PROJECT_RESULT_DIR="${SCRATCH}/introspect"
 PROJECT_LOG_DIR="${PROJECT_RESULT_DIR}/logs"
-mkdir -p $PROJECT_LOG_DIR
+if [ ! -z $SCRATCH ]; then
+    mkdir -p $PROJECT_LOG_DIR
+fi
 
 function job_script {
     local cluster;
@@ -44,6 +46,11 @@ function submitjob {
     local walltime=$1;
     local experiment_id;
 
+    if [ ! -z $RUN_LOCALLY ]; then
+        python "${@:3}"
+        return 0;
+    fi
+
     if ! experiment_id=$(python -m experiments.experiment_id "${@:3}"); then
         echo -e "\e[31mCould not get experiment name, error ^^^${experiment_id}\e[0m" >&2;
         return 1;
@@ -51,7 +58,7 @@ function submitjob {
 
     if [[ $walltime == *"?"* ]]; then
         echo -e "\e[33mUndefined walltime $walltime for ${experiment_id}\e[0m" >&2;
-        return 0;
+        return 1;
     fi
 
     if [ ! -f "${PROJECT_RESULT_DIR}/results/${experiment_id%%_*}/${experiment_id}.json" ]; then
