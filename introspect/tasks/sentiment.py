@@ -26,31 +26,29 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
     async def _query_sentiment(
         self, parahraph: str, generate_text: RequestCapture
     ) -> str:
-        if self._is_enabled('no-maybe-redacted'):
-            return await generate_text([
-                {
-                    'user': (
-                        f'What is the sentiment of the following paragraph?'
-                        f' Answer only "positive", "negative", "neutral", or "unknown".'
-                        f' Do not explain your answer.\n\n'
-                        f'Paragraph: {parahraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+        user_prompt = ''
+        if self._is_enabled('c-persona-you'):
+            user_prompt += 'Are you able to determine the sentiment of the following paragraph?'
+        elif self._is_enabled('c-persona-human'):
+            user_prompt += 'What would you classify the sentiment of the following paragraph as?'
         else:
-            return await generate_text([
-                {
-                    'user': (
-                        f'What is the sentiment of the following paragraph?'
-                        f' Answer only "positive", "negative", "neutral", or "unknown".'
-                        f' The paragraph can contain redacted words marked with [REDACTED].'
-                        f' Do not explain your answer.\n\n'
-                        f'Paragraph: {parahraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+            user_prompt += 'What would a human classify the sentiment of the following paragraph as?'
+
+        if not self._is_enabled('c-no-redacted'):
+            user_prompt += ' The paragraph can contain redacted words marked with [REDACTED].'
+
+        user_prompt += (
+            ' Answer only "positive", "negative", "neutral", or "unknown".'
+            f' Do not explain the answer.\n\n'
+            f'Paragraph: {parahraph}'
+        )
+
+        return await generate_text([
+            {
+                'user': user_prompt,
+                'assistant': None
+            }
+        ])
 
     def _process_is_correct(self, observation: SentimentObservation, sentiment: Literal['positive', 'negative', 'neutral', 'unknown']|None) -> bool|None:
         match sentiment:
@@ -192,32 +190,29 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        if self._is_enabled('give-options'):
-            ability_source = await generate_text([
-                {
-                    'user': (
-                        f'Are you able to determine the sentiment of the following paragraph?'
-                        f' The sentiment is either "positive", "negative", "neutral", or "unknown".'
-                        f' Answer only "yes" or "no".'
-                        f' Do not explain your answer.\n\n' +
-                        f'Paragraph: {paragraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+        user_prompt = ''
+        if self._is_enabled('i-persona-you'):
+            user_prompt += 'Are you able to determine the sentiment of the following paragraph?'
+        elif self._is_enabled('i-persona-human'):
+            user_prompt += 'Is a human able to determine the sentiment of the following paragraph?'
         else:
-            ability_source = await generate_text([
-                {
-                    'user': (
-                        f'Are you able to determine the sentiment of the following paragraph?'
-                        f' Answer only "yes" or "no".'
-                        f' Do not explain your answer.\n\n' +
-                        f'Paragraph: {paragraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+            user_prompt += 'Is it possible to determine the sentiment of the following paragraph?'
 
+        if self._is_enabled('i-options'):
+            user_prompt += ' The sentiment is either "positive", "negative", "neutral", or "unknown".'
+
+        user_prompt += (
+            f' Answer only "yes" or "no".'
+            f' Do not explain the answer.\n\n'
+            f'Paragraph: {paragraph}'
+        )
+
+        ability_source = await generate_text([
+            {
+                'user': user_prompt,
+                'assistant': None
+            }
+        ])
         ability = self._extract_ability(ability_source)
 
         match ability:
@@ -249,19 +244,35 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        if observation['label'] == self._dataset.label_str2int['positive']:
+        if sentiment == self._dataset.label_str2int['positive']:
             opposite_sentiment = 'negative'
         else:
             opposite_sentiment = 'positive'
 
+        user_prompt = ''
+        if self._is_enabled('e-implcit-target'):
+            if self._is_enabled('e-persona-you'):
+                user_prompt += f'Edit the following paragraph such you would classify the sentiment as the opposite of what it currently is.'
+            elif self._is_enabled('e-persona-human'):
+                user_prompt += f'Edit the following paragraph such a human would classify the as the opposite of what it currently is.'
+            else:
+                user_prompt += f'Edit the following paragraph such that the sentiment becomes the opposite of what it currently is.'
+        else:
+            if self._is_enabled('e-persona-you'):
+                user_prompt += f'Edit the following paragraph such you would classify the sentiment is "{opposite_sentiment}".'
+            elif self._is_enabled('e-persona-human'):
+                user_prompt += f'Edit the following paragraph such a human would classify the sentiment is "{opposite_sentiment}".'
+            else:
+                user_prompt += f'Edit the following paragraph such that the sentiment is "{opposite_sentiment}".'
+
+        user_prompt += (
+            f' Make as few edits as possible.'
+            f' Do not explain the answer.\n\n'
+            f'Paragraph: {paragraph}'
+        )
         counterfactual_source = await generate_text([
             {
-                'user': (
-                    f'Edit the following paragraph such that the sentiment is "{opposite_sentiment}".'
-                    f' Make as few edits as possible.'
-                    f' Do not explain your answer.\n\n' +
-                    f'Paragraph: {paragraph}'
-                ),
+                'user': user_prompt,
                 'assistant': None
             }
         ])
@@ -299,34 +310,42 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        if self._is_enabled('explain-para-1'):
-            redacted_source = await generate_text([
-                {
-                    'user': (
-                        f'Redact the following paragraph such that the sentiment can no longer be determined,'
-                        f' by replacing important words with [REDACTED].'
-                        f' Do not explain your answer.\n\n' +
-                        f'Paragraph: {paragraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+        user_prompt = ''
+        if self._is_enabled('e-short'):
+            if self._is_enabled('e-persona-you'):
+                user_prompt += 'Redact the following paragraph such that you can no longer determine the sentiment,'
+            elif self._is_enabled('e-persona-human'):
+                user_prompt += 'Redact the following paragraph such that a human can no longer determine the sentiment,'
+            else:
+                user_prompt += 'Redact the following paragraph such that the sentiment can no longer be determined,'
+
+            user_prompt += ' by replacing important words with [REDACTED].'
         else:
-            redacted_source = await generate_text([
-                {
-                    'user': (
-                        f'Redact the most important words for determining the sentiment of the following paragraph,'
-                        f' by replacing them with [REDACTED],'
-                        f' such that without these words the sentiment can not be determined.'
-                        f' Do not explain your answer.\n\n' +
-                        f'Paragraph: {paragraph}'
-                    ),
-                    'assistant': None
-                }
-            ])
+            user_prompt += (
+                'Redact the most important words for determining the sentiment of the following paragraph,'
+                ' by replacing important words with [REDACTED],'
+            )
+
+            if self._is_enabled('e-persona-you'):
+                user_prompt += ' such that without these words you can not determine the sentiment.'
+            elif self._is_enabled('e-persona-human'):
+                user_prompt += ' such that without these words a human can not determine the sentiment.'
+            else:
+                user_prompt += ' such that without these words the sentiment can not be determined.'
+
+        user_prompt += (
+            f' Do not explain the answer.\n\n' +
+            f'Paragraph: {paragraph}'
+        )
 
         # The redacted_source tends to have the format:
         # Paragraph: The movie was [Redacted] ...
+        redacted_source = await generate_text([
+            {
+                'user': user_prompt,
+                'assistant': None
+            }
+        ])
         redacted = self._extract_paragraph(redacted_source)
 
         redacted_sentiment_source, redacted_sentiment = None, None
@@ -361,14 +380,22 @@ class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservatio
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
+        user_prompt = ''
+        user_prompt += 'List the most important words for determining the sentiment of the following paragraph,'
+        if self._is_enabled('e-persona-you'):
+            user_prompt += ' such that without these words you can not determine the sentiment.'
+        elif self._is_enabled('e-persona-human'):
+            user_prompt += ' such that without these words a human can not determine the sentiment.'
+        else:
+            user_prompt += ' such that without these words the sentiment can not be determined.'
+        user_prompt += (
+            f' Do not explain the answer.\n\n' +
+            f'Paragraph: {paragraph}'
+        )
+
         importance_source = await generate_text([
             {
-                'user': (
-                    f'List the most important words for determining the sentiment of the following paragraph,'
-                    f' such that without these words the sentiment can not be determined.'
-                    f' Do not explain your answer.\n\n' +
-                    f'Paragraph: {paragraph}'
-                ),
+                'user': user_prompt,
                 'assistant': None
             }
         ])

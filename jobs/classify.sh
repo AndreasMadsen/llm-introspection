@@ -12,12 +12,12 @@ do
     do
         for system_message in 'none' 'default'
         do
-            for task_config in '' 'no-maybe-redacted'
+            for task_config in '' 'c-persona-you' 'c-persona-human' 'c-no-redacted' 'c-no-redacted c-persona-you' 'c-no-redacted c-persona-human'
             do
                 submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
                     experiments/analysis.py \
                     --task 'classify' \
-                    --task-config "${task_config}" \
+                    --task-config $task_config \
                     --model-name "${model_name}" \
                     --system-message "${system_message}" \
                     --dataset "${dataset}" \
