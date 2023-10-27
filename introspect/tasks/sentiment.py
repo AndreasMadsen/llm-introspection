@@ -28,11 +28,11 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
     ) -> str:
         user_prompt = ''
         if self._is_enabled('c-persona-you'):
-            user_prompt += 'Are you able to determine the sentiment of the following paragraph?'
-        elif self._is_enabled('c-persona-human'):
             user_prompt += 'What would you classify the sentiment of the following paragraph as?'
-        else:
+        elif self._is_enabled('c-persona-human'):
             user_prompt += 'What would a human classify the sentiment of the following paragraph as?'
+        else:
+            user_prompt += 'What is the sentiment of the following paragraph?'
 
         if not self._is_enabled('c-no-redacted'):
             user_prompt += ' The paragraph can contain redacted words marked with [REDACTED].'
