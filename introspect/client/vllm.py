@@ -1,10 +1,11 @@
 
 from typing import TypedDict, Required, NotRequired
+from timeit import default_timer as timer
 
 import aiohttp
 import asyncio
 
-from ..types import GenerateConfig, GenerateError
+from ..types import GenerateResponse, GenerateConfig, GenerateError
 from ._abstract_client import AbstractClient
 
 class VLLMInfo(TypedDict):
@@ -110,7 +111,7 @@ class VLLMClient(AbstractClient[VLLMInfo]):
     async def _info(self) -> VLLMInfo:
         return {}
 
-    async def _generate(self, prompt: str, config: GenerateConfig) -> str:
+    async def _generate(self, prompt: str, config: GenerateConfig) -> GenerateResponse:
         payload: VLLMGeneratePayload = {
             'prompt': prompt,
             'max_tokens': config.get('max_new_tokens', 0),
@@ -124,6 +125,7 @@ class VLLMClient(AbstractClient[VLLMInfo]):
         }
 
         try:
+            request_start_time = timer()
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5 * 60)) as session:
                 async with session.post(f'{self._base_url}/generate', json=payload) as response:
                     answer = await response.json()
@@ -131,7 +133,12 @@ class VLLMClient(AbstractClient[VLLMInfo]):
                     if response.status != 200:
                         raise VLLMError(f'unexpected status code {response.status}')
 
-                    return answer['text'][0][len(prompt):]
+                    response = answer['text'][0][len(prompt):]
+                    durration = timer() - request_start_time
+                    return {
+                        'response': response,
+                        'duration': durration
+                    }
 
         except (VLLMError, asyncio.TimeoutError) as err:
             raise GenerateError('LLM generate failed') from err

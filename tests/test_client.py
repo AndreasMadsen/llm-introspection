@@ -37,15 +37,16 @@ async def test_client_tgi_request(httpserver: HTTPServer):
     httpserver.expect_request("/health").respond_with_data('')
     httpserver.expect_request("/").respond_with_json([{
         'generated_text': 'MOCK RESPONSE'
-    }])
+    }], headers={
+        'X-Inference-Time': '12'
+    })
 
     client = TGIClient(httpserver.url_for(""))
     answer = await client.generate('MISSING USER MESSAGE PROMPT: ', {})
     assert answer == {
         'response': 'MOCK RESPONSE',
-        'duration': answer['duration']
+        'duration': 12
     }
-    assert answer['duration'] > 0
 
 @pytest.mark.asyncio
 async def test_client_tgi_info(httpserver: HTTPServer):

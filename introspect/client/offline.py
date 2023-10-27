@@ -3,7 +3,7 @@ from typing import TypedDict
 
 from introspect.database import GenerationCache
 
-from ..types import OfflineError
+from ..types import OfflineError, GenerateResponse
 from ._abstract_client import AbstractClient
 
 class OfflineInfo(TypedDict):
@@ -19,5 +19,5 @@ class OfflineClient(AbstractClient[OfflineInfo]):
     async def _info(self) -> OfflineInfo:
        return {}
 
-    async def _generate(self, prompt, config) -> str:
+    async def _generate(self, prompt, config) -> GenerateResponse:
         raise OfflineError('An LLM client is not used')
