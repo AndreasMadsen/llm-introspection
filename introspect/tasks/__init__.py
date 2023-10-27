@@ -1,5 +1,6 @@
 
 __all__ = [
+    'AbstractTask',
     'SentimentClassifyTask', 'SentimentAnswerableTask', 'SentimentCounterfactualTask', 'SentimentRedactedTask',
     'tasks'
 ]
