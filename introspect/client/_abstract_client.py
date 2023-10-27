@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import asyncio
 import time
-from timeit import default_timer as timer
 from typing import TypedDict, Generic, TypeVar
 
 from ..types import GenerateConfig, GenerateResponse, GenerateError, OfflineError
@@ -49,7 +48,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    async def _generate(self, prompt: str, config: GenerateConfig) -> str:
+    async def _generate(self, prompt: str, config: GenerateConfig) -> GenerateResponse:
         ...
 
     async def _await_connection(self):
@@ -127,13 +126,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
 
         # compute response
         try:
-            request_start_time = timer()
-            response = await self._generate(prompt, config_with_defaults)
-            durration = timer() - request_start_time
-            computed_answer: GenerateResponse|GenerateError = {
-                'response': response,
-                'duration': durration
-            }
+            computed_answer = await self._generate(prompt, config_with_defaults)
         except GenerateError as error:
             computed_answer: GenerateResponse|GenerateError = error
         except RetryRequest as error:

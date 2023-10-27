@@ -4,7 +4,7 @@ from typing import TypedDict, Literal, Required, NotRequired
 import aiohttp
 import asyncio
 
-from ..types import GenerateConfig, GenerateError
+from ..types import GenerateConfig, GenerateError, GenerateResponse
 from ._abstract_client import AbstractClient, RetryRequest
 from text_generation.errors import parse_error, ValidationError, GenerationError
 
@@ -101,7 +101,7 @@ class TGIClient(AbstractClient[TGIInfo]):
 
                 return await response.json()
 
-    async def _generate(self, prompt, config) -> str:
+    async def _generate(self, prompt, config) -> GenerateResponse:
         payload: TGIGeneratePayload = {
             'inputs': prompt,
             'parameters': { **config },
@@ -116,7 +116,10 @@ class TGIClient(AbstractClient[TGIInfo]):
                     if response.status != 200:
                         raise parse_error(response.status, answer)
 
-                    return answer[0]['generated_text']
+                    return {
+                        'response': answer[0]['generated_text'],
+                        'duration': float(response.headers['X-Inference-Time'])
+                    }
 
         except ValidationError as err:
             raise GenerateError('LLM generate failed') from err

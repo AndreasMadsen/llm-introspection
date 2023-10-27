@@ -2,6 +2,7 @@
 from typing import TypedDict
 
 from introspect.database import GenerationCache
+from introspect.types import GenerateResponse
 
 from ._abstract_client import AbstractClient
 
@@ -23,6 +24,9 @@ class TestClient(AbstractClient[TestInfo]):
     async def _info(self) -> TestInfo:
        return {}
 
-    async def _generate(self, prompt, config) -> str:
+    async def _generate(self, prompt, config) -> GenerateResponse:
         self.log.append(prompt)
-        return self.response.get(prompt, f'[DEFAULT RESPONSE {len(self.log)}]')
+        return {
+           'response': self.response.get(prompt, f'[DEFAULT RESPONSE {len(self.log)}]'),
+           'duration': 0
+        }
