@@ -12,17 +12,17 @@ do
     do
         for system_message in 'none' 'default'
         do
-            for task_config in '' 'explain-para-1'
+            for task_config in '' 'e-persona-you' 'e-persona-human' 'e-short' 'e-short e-persona-you' 'e-short e-persona-human'
             do
                 submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
                     experiments/analysis.py \
                     --task 'redacted' \
+                    --task-config $task_config \
                     --model-name "${model_name}" \
                     --system-message "${system_message}" \
                     --dataset "${dataset}" \
                     --split 'train' \
                     --seed 0 \
-                    --max-workers 10 \
                     --clean-database
             done
             break

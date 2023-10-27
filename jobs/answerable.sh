@@ -12,12 +12,12 @@ do
     do
         for system_message in 'none' 'default'
         do
-            for task_config in '' 'give-options'
+            for task_config in '' 'i-persona-you' 'i-persona-human' 'i-options' 'i-options i-persona-you' 'i-options i-persona-human'
             do
                 submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
                     experiments/analysis.py \
                     --task 'answerable' \
-                    --task-config "${task_config}" \
+                    --task-config $task_config \
                     --model-name "${model_name}" \
                     --system-message "${system_message}" \
                     --dataset "${dataset}" \
