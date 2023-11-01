@@ -78,7 +78,7 @@ parser.add_argument('--task',
                     help='Which task to run')
 parser.add_argument('--task-config',
                     action='store',
-                    nargs='+',
+                    nargs='*',
                     default=[],
                     type=str,
                     help='List of configuration options for selected task')
@@ -159,7 +159,8 @@ async def main():
                                seed=args.seed)
 
         for classify_task_config in (
-            tuple() if args.task == TaskCategories.CLASSIFY else (['no-maybe-redacted'], [])
+            [] if args.task == TaskCategories.CLASSIFY
+            else list(set(args.task_config) & set(['c-no-redacted', 'c-persona-human', 'c-persona-you']))
         )
     ])
 
