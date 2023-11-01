@@ -36,7 +36,7 @@ def generate_experiment_id(name: str,
     if isinstance(task, str):
         experiment_id += f"_t-{task}"
     if isinstance(task_config, list):
-        experiment_id += f"_c-{'-'.join(task_config)}"
+        experiment_id += f"_c-{'-'.join(sorted(task_config))}"
     if isinstance(seed, int):
         experiment_id += f"_s-{seed}"
 

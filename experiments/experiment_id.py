@@ -35,7 +35,7 @@ parser.add_argument('--task',
                     help='Which task to run')
 parser.add_argument('--task-config',
                     action='store',
-                    nargs='+',
+                    nargs='*',
                     default=[],
                     type=str,
                     help='List of configuration options for selected task')
