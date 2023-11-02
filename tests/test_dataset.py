@@ -23,6 +23,7 @@ multi_choice_datasets = [
     DatasetExpectations('bAbI-1', 7996, 1999, 995),
     DatasetExpectations('bAbI-2', 7996, 1999, 995),
     DatasetExpectations('bAbI-3', 7996, 1999, 995),
+    DatasetExpectations('MCTest', 1200, 200, 600),
 ]
 
 @pytest.mark.parametrize("info", sentiment_datasets, ids=lambda info: info.name)

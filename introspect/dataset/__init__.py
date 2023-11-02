@@ -2,7 +2,7 @@
 __all__ = [
     'AbstractDataset', 'SentimentDataset', 'MultiChoiceDataset',
     'SST2Dataset', 'IMDBDataset',
-    'Babi1Dataset', 'Babi2Dataset', 'Babi3Dataset',
+    'Babi1Dataset', 'Babi2Dataset', 'Babi3Dataset', 'MCTestDataset',
     'datasets'
 ]
 
@@ -14,9 +14,11 @@ from ._categories import SentimentDataset, MultiChoiceDataset
 from .sst2 import SST2Dataset
 from .imdb import IMDBDataset
 from .babi import Babi1Dataset, Babi2Dataset, Babi3Dataset
+from .mctest import MCTestDataset
 
 datasets: Mapping[str, Type[AbstractDataset]] = {
     Dataset.name: Dataset
     for Dataset
-    in [SST2Dataset, IMDBDataset, Babi1Dataset, Babi2Dataset, Babi3Dataset]
+    in [SST2Dataset, IMDBDataset,
+        Babi1Dataset, Babi2Dataset, Babi3Dataset, MCTestDataset]
 }

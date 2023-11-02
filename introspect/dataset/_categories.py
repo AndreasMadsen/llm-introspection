@@ -7,7 +7,7 @@ from ._abstract_dataset import AbstractDataset
 from ..types import DatasetCategories, SentimentObservation, MultiChoiceObservation
 from ..types import SentimentObservation
 
-class SentimentDataset(AbstractDataset[SentimentObservation, Literal['positive', 'negative']]):
+class SentimentDataset(AbstractDataset[SentimentObservation]):
     category = DatasetCategories.SENTIMENT
 
     _features = datasets.Features({
@@ -16,7 +16,7 @@ class SentimentDataset(AbstractDataset[SentimentObservation, Literal['positive',
         "idx": datasets.Value("int64"),
     })
 
-class MultiChoiceDataset(AbstractDataset[MultiChoiceObservation, Literal['garden', 'hallway', 'kitchen', 'office', 'bedroom', 'bathroom']]):
+class MultiChoiceDataset(AbstractDataset[MultiChoiceObservation]):
     category = DatasetCategories.MULTI_CHOICE
 
     _features = datasets.Features({
