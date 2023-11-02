@@ -91,7 +91,7 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
         capture = RequestCapture(self._model)
         partial_result = await self._task(observation, capture)
         return self._make_task_result(partial_result, {
-            'label': self._dataset.label_int2str[observation['label']],
+            'label': observation['label'],
             'duration': capture.duration
         })
 

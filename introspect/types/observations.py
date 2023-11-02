@@ -1,9 +1,16 @@
 
-from typing import TypedDict, Required
+from typing import TypeVar, Generic, TypedDict, Required, Literal
 
-class Observation(TypedDict):
-    label: Required[int]
+LabelType = TypeVar('LabelType', bound=str)
+
+class Observation(TypedDict, Generic[LabelType]):
+    label: Required[LabelType]
     idx: Required[int]
 
-class SentimentObservation(Observation):
+class SentimentObservation(Observation[Literal['negative', 'positive']]):
     text: Required[str]
+
+class MultiChoiceObservation(Observation[str]):
+    paragraph: Required[str]
+    question: Required[str]
+    choices: Required[list[str]]

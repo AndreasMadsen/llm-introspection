@@ -1,7 +1,7 @@
 
 import re
 import json
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from ._abstract_tasks import \
     AbstractTask, \
@@ -19,6 +19,15 @@ from ..types import \
 
 def _startwith(content: str, options: list[str]) -> bool:
     return any(content.startswith(pattern) for pattern in options)
+
+SentimentPredict: TypeAlias = Literal['positive', 'negative', 'neutral', 'unknown']
+SentimentLabel: TypeAlias = Literal['positive', 'negative']
+PartialClassifySentimentResult: TypeAlias = PartialClassifyResult[SentimentPredict]
+ClassifySentimentResult: TypeAlias = ClassifyResult[SentimentLabel, SentimentPredict]
+PartialIntrospectSentimentResult: TypeAlias = PartialIntrospectResult[SentimentPredict]
+IntrospectSentimentResult: TypeAlias = IntrospectResult[SentimentLabel, SentimentPredict]
+PartialFaithfulSentimentResult: TypeAlias = PartialFaithfulResult[SentimentPredict]
+FaithfulSentimentResult: TypeAlias = FaithfulResult[SentimentLabel, SentimentPredict]
 
 class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.SENTIMENT
@@ -50,12 +59,12 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             }
         ])
 
-    def _process_is_correct(self, observation: SentimentObservation, sentiment: Literal['positive', 'negative', 'neutral', 'unknown']|None) -> bool|None:
+    def _process_is_correct(self, observation: SentimentObservation, sentiment: SentimentPredict|None) -> bool|None:
         match sentiment:
             case None:
                 return None
             case ('positive' | 'negative'):
-                return observation['label'] == self._dataset.label_str2int[sentiment]
+                return observation['label'] == sentiment
             case _:
                 return False
 
@@ -67,7 +76,7 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             flags=re.IGNORECASE
         )
 
-    def _extract_sentiment(self, source: str) -> Literal['positive', 'negative', 'neutral', 'unknown']|None:
+    def _extract_sentiment(self, source: str) -> SentimentPredict|None:
         source = source.lower()
 
         if _startwith(source, [
@@ -162,10 +171,10 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
         return list_content
 
 class SentimentClassifyTask(ClassifyTask[SentimentDataset, SentimentObservation],
-                            SentimentTask[PartialClassifyResult, ClassifyResult]):
+                            SentimentTask[PartialClassifySentimentResult, ClassifySentimentResult]):
     task_category = TaskCategories.CLASSIFY
 
-    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialClassifyResult:
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialClassifySentimentResult:
         paragraph = observation['text']
 
         sentiment_source = await self._query_sentiment(paragraph, generate_text)
@@ -174,16 +183,16 @@ class SentimentClassifyTask(ClassifyTask[SentimentDataset, SentimentObservation]
 
         return {
             'paragraph': paragraph,
-            'sentiment_source': sentiment_source,
-            'sentiment': sentiment,
+            'predict_source': sentiment_source,
+            'predict': sentiment,
             'correct': correct
         }
 
 class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservation],
-                              SentimentTask[PartialIntrospectResult, IntrospectResult]):
+                              SentimentTask[PartialIntrospectSentimentResult, IntrospectSentimentResult]):
     task_category = TaskCategories.ANSWERABLE
 
-    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialIntrospectResult:
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialIntrospectSentimentResult:
         paragraph = observation['text']
 
         sentiment_source = await self._query_sentiment(paragraph, generate_text)
@@ -225,8 +234,8 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
 
         return {
             'paragraph': paragraph,
-            'sentiment_source': sentiment_source,
-            'sentiment': sentiment,
+            'predict_source': sentiment_source,
+            'predict': sentiment,
             'correct': correct,
             'ability_source': ability_source,
             'ability': ability,
@@ -234,17 +243,17 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
         }
 
 class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObservation],
-                                  SentimentTask[PartialFaithfulResult, FaithfulResult]):
+                                  SentimentTask[PartialFaithfulSentimentResult, FaithfulSentimentResult]):
     task_category = TaskCategories.COUNTERFACTUAL
 
-    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulSentimentResult:
         paragraph = observation['text']
 
         sentiment_source = await self._query_sentiment(paragraph, generate_text)
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        if sentiment == self._dataset.label_str2int['positive']:
+        if sentiment == 'positive':
             opposite_sentiment = 'negative'
         else:
             opposite_sentiment = 'positive'
@@ -289,21 +298,21 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
 
         return {
             'paragraph': paragraph,
-            'sentiment_source': sentiment_source,
-            'sentiment': sentiment,
+            'predict_source': sentiment_source,
+            'predict': sentiment,
             'correct': correct,
             'explain_source': counterfactual_source,
             'explain': counterfactual,
-            'explain_sentiment_source': counterfactual_sentiment_source,
-            'explain_sentiment': counterfactual_sentiment,
+            'explain_predict_source': counterfactual_sentiment_source,
+            'explain_predict': counterfactual_sentiment,
             'faithful': faithful,
         }
 
 class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation],
-                            SentimentTask[PartialFaithfulResult, FaithfulResult]):
+                            SentimentTask[PartialFaithfulSentimentResult, FaithfulSentimentResult]):
     task_category = TaskCategories.REDACTED
 
-    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulSentimentResult:
         paragraph = observation['text']
 
         sentiment_source = await self._query_sentiment(paragraph, generate_text)
@@ -359,21 +368,21 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
 
         return {
             'paragraph': paragraph,
-            'sentiment_source': sentiment_source,
-            'sentiment': sentiment,
+            'predict_source': sentiment_source,
+            'predict': sentiment,
             'correct': correct,
             'explain_source': redacted_source,
             'explain': redacted,
-            'explain_sentiment_source': redacted_sentiment_source,
-            'explain_sentiment': redacted_sentiment,
+            'explain_predict_source': redacted_sentiment_source,
+            'explain_predict': redacted_sentiment,
             'faithful': faithful,
         }
 
 class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservation],
-                              SentimentTask[PartialFaithfulResult, FaithfulResult]):
+                              SentimentTask[PartialFaithfulSentimentResult, FaithfulSentimentResult]):
     task_category = TaskCategories.IMPORTANCE
 
-    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulResult:
+    async def _task(self, observation: SentimentObservation, generate_text: RequestCapture) -> PartialFaithfulSentimentResult:
         paragraph = observation['text']
 
         sentiment_source = await self._query_sentiment(paragraph, generate_text)
@@ -421,12 +430,12 @@ class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservatio
 
         return {
             'paragraph': paragraph,
-            'sentiment_source': sentiment_source,
-            'sentiment': sentiment,
+            'predict_source': sentiment_source,
+            'predict': sentiment,
             'correct': correct,
             'explain_source': importance_source,
             'explain': explain,
-            'explain_sentiment_source': redacted_sentiment_source,
-            'explain_sentiment': redacted_sentiment,
+            'explain_predict_source': redacted_sentiment_source,
+            'explain_predict': redacted_sentiment,
             'faithful': faithful,
         }

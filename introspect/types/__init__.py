@@ -4,7 +4,7 @@ __all__ = [
     'DatasetCategories',
     'GenerateConfig', 'GenerateResponse', 'GenerateError', 'OfflineError',
     'DatasetSplits',
-    'Observation', 'SentimentObservation',
+    'Observation', 'SentimentObservation', 'MultiChoiceObservation',
     'TaskResult',
     'PartialClassifyResult', 'ClassifyResult',
     'PartialIntrospectResult', 'IntrospectResult',
@@ -21,7 +21,7 @@ from .chat_history import ChatHistory
 from .dataset_categories import DatasetCategories
 from .generate import GenerateConfig, GenerateResponse, GenerateError, OfflineError
 from .dataset_splits import DatasetSplits
-from .observations import Observation, SentimentObservation
+from .observations import Observation, SentimentObservation, MultiChoiceObservation
 from .task_results import TaskResult, \
     PartialClassifyResult, ClassifyResult, \
     PartialIntrospectResult, IntrospectResult, \

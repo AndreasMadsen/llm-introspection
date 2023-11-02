@@ -1,37 +1,38 @@
 
-from typing import TypedDict, Required, Literal, TypeAlias
+from typing import TypeVar, Generic, TypedDict, Required, Literal
 
-_sentiments: TypeAlias = Literal['positive', 'negative', 'neutral', 'unknown']
+LabelType = TypeVar('LabelType', bound=str)
+PredictType = TypeVar('PredictType', bound=str)
 
-class TaskResult(TypedDict):
+class TaskResult(TypedDict, Generic[LabelType]):
     duration: Required[float]
-    label: Required[Literal['positive', 'negative']]
+    label: Required[LabelType]
 
-class PartialClassifyResult(TypedDict):
+class PartialClassifyResult(TypedDict, Generic[PredictType]):
     paragraph: Required[str|None]
-    sentiment_source: Required[str|None]
-    sentiment: Required[_sentiments|None]
+    predict_source: Required[str|None]
+    predict: Required[PredictType|None]
     correct: Required[bool|None]
 
-class ClassifyResult(TaskResult, PartialClassifyResult):
+class ClassifyResult(TaskResult[LabelType], PartialClassifyResult[PredictType]):
     pass
 
-class PartialIntrospectResult(PartialClassifyResult):
+class PartialIntrospectResult(PartialClassifyResult[PredictType], Generic[PredictType]):
     paragraph: Required[str|None]
     ability_source: Required[str|None]
     ability: Required[Literal['yes', 'no']|None]
     introspect: Required[bool|None]
 
-class IntrospectResult(TaskResult, PartialIntrospectResult):
+class IntrospectResult(TaskResult[LabelType], PartialIntrospectResult[PredictType]):
     pass
 
-class PartialFaithfulResult(PartialClassifyResult):
+class PartialFaithfulResult(PartialClassifyResult[PredictType], Generic[PredictType]):
     paragraph: Required[str|None]
     explain_source: Required[str|None]
     explain: Required[str|None]
-    explain_sentiment_source: Required[str|None]
-    explain_sentiment: Required[_sentiments|None]
+    explain_predict_source: Required[str|None]
+    explain_predict: Required[PredictType|None]
     faithful: Required[bool|None]
 
-class FaithfulResult(TaskResult, PartialFaithfulResult):
+class FaithfulResult(TaskResult[LabelType], PartialFaithfulResult[PredictType]):
     pass

@@ -16,8 +16,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
     category: DatasetCategories
 
     _persistent_dir: pathlib.Path
-    _target_name: str = 'label'
-    _label_def: datasets.ClassLabel
+    _features: datasets.Features
 
     _split_train: str
     _split_valid: str
@@ -37,22 +36,6 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         if not isinstance(self.info.features, dict):
             raise ValueError('this dataset does not havce features defined')
 
-        if self._target_name not in self.info.features:
-            raise ValueError(f'the dataset._target_name ("{self._target_name}") feature does not exists')
-
-        self._label_def = self.info.features[self._target_name]
-
-    @cached_property
-    @abstractmethod
-    def label_str2int(self) -> Mapping[LabelNamesType, int]:
-        ...
-
-    @cached_property
-    def label_int2str(self) -> Mapping[int, LabelNamesType]:
-        return {
-            value: name for name, value in self.label_str2int.items()
-        }
-
     @abstractmethod
     def _builder(self, cache_dir: pathlib.Path) -> datasets.DatasetBuilder:
         ...
@@ -71,15 +54,6 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         """
         return self._builder_cache.info
 
-    @property
-    def num_classes(self) -> int:
-        """Number of classes in the dataset
-        """
-        if self.info.features is None:
-            raise NotImplementedError('dataset does not implement features')
-
-        return self.info.features[self._target_name].num_classes
-
     def download(self):
         """Downloads dataset
         """
@@ -87,7 +61,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
 
     def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
         return dataset \
-            .map(self._restructure, with_indices=True, remove_columns=dataset.column_names) \
+            .map(self._restructure, with_indices=True, features=self._features, remove_columns=dataset.column_names) \
             .shuffle(seed=self._seed) # type: ignore
 
     def num_examples(self, split: DatasetSplits):

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from introspect.dataset import datasets, SentimentDataset
+from introspect.dataset import datasets, SentimentDataset, MultiChoiceDataset
 from introspect.types import DatasetCategories, DatasetSplits
 
 @dataclass
@@ -13,11 +13,16 @@ class DatasetExpectations:
     train: int
     valid: int
     test: int
-    num_classes: int
 
 sentiment_datasets = [
-    DatasetExpectations('IMDB', 20000, 5000, 25000, 2),
-    DatasetExpectations('SST2', 53879, 13470, 872, 2),
+    DatasetExpectations('IMDB', 20000, 5000, 25000),
+    DatasetExpectations('SST2', 53879, 13470, 872),
+]
+
+multi_choice_datasets = [
+    DatasetExpectations('bAbI-1', 7996, 1999, 995),
+    DatasetExpectations('bAbI-2', 7996, 1999, 995),
+    DatasetExpectations('bAbI-3', 7996, 1999, 995),
 ]
 
 @pytest.mark.parametrize("info", sentiment_datasets, ids=lambda info: info.name)
@@ -29,14 +34,27 @@ def test_dataset_sentiment(info):
     assert dataset.name == info.name
     assert dataset.category == DatasetCategories.SENTIMENT
 
-    assert isinstance(dataset.label_str2int['negative'], int)
-    assert isinstance(dataset.label_str2int['positive'], int)
-    assert dataset.label_str2int['positive'] != dataset.label_str2int['negative']
-
     assert dataset.train_num_examples == dataset.num_examples(DatasetSplits.TRAIN) == info.train
     assert dataset.valid_num_examples == dataset.num_examples(DatasetSplits.VALID) == info.valid
     assert dataset.test_num_examples == dataset.num_examples(DatasetSplits.TEST) == info.test
 
     for example in dataset.train():
         assert example.keys() == { 'text', 'label', 'idx' }
+        break
+
+@pytest.mark.parametrize("info", multi_choice_datasets, ids=lambda info: info.name)
+def test_dataset_multi_choice(info):
+    dataset = datasets[info.name](persistent_dir=pathlib.Path('.'))
+
+    assert isinstance(dataset, MultiChoiceDataset)
+
+    assert dataset.name == info.name
+    assert dataset.category == DatasetCategories.MULTI_CHOICE
+
+    assert dataset.train_num_examples == dataset.num_examples(DatasetSplits.TRAIN) == info.train
+    assert dataset.valid_num_examples == dataset.num_examples(DatasetSplits.VALID) == info.valid
+    assert dataset.test_num_examples == dataset.num_examples(DatasetSplits.TEST) == info.test
+
+    for example in dataset.train():
+        assert example.keys() == { 'paragraph', 'question', 'choices', 'label', 'idx' }
         break
