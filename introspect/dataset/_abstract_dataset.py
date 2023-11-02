@@ -9,9 +9,8 @@ import datasets
 from ..types import DatasetCategories, DatasetSplits, Observation
 
 ObservationType = TypeVar('ObservationType', bound=Observation)
-LabelNamesType = TypeVar('LabelNamesType', bound=str)
 
-class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMeta):
+class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
     name: str
     category: DatasetCategories
 
