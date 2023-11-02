@@ -11,9 +11,9 @@ class TestInfo(TypedDict):
 
 class TestClient(AbstractClient[TestInfo]):
     log: list[str]
-    response: dict[str, str]
+    response: dict[str, str|None]
 
-    def __init__(self, response: dict[str, str] = {}, cache: GenerationCache | None = None) -> None:
+    def __init__(self, response: dict[str, str|None] = {}, cache: GenerationCache | None = None) -> None:
        self.log = []
        self.response = response
        super().__init__('http://127.0.0.0:0', cache)
@@ -26,7 +26,10 @@ class TestClient(AbstractClient[TestInfo]):
 
     async def _generate(self, prompt, config) -> GenerateResponse:
         self.log.append(prompt)
+        response = self.response.get(prompt, None)
+        if response is None:
+         response = f'[DEFAULT RESPONSE {len(self.log)}]'
         return {
-           'response': self.response.get(prompt, f'[DEFAULT RESPONSE {len(self.log)}]'),
+           'response': response,
            'duration': 0
         }
