@@ -17,7 +17,7 @@ def task() -> SentimentClassifyTask:
 
 def test_task_sentiment_process_redact_words(task: SentimentClassifyTask):
     r = lambda content, words: task._process_redact_words(
-        {'text': content, 'label': 0, 'idx': 0},
+        {'text': content, 'label': 'negative', 'idx': 0},
         words
     )
 
@@ -55,7 +55,7 @@ def test_task_sentiment_process_redact_words(task: SentimentClassifyTask):
 
 def test_task_sentiment_process_redact_words_synthetic(task: SentimentClassifyTask):
     r = lambda content, words: task._process_redact_words(
-        {'text': content, 'label': 0, 'idx': 0},
+        {'text': content, 'label': 'negative', 'idx': 0},
         words
     )
 

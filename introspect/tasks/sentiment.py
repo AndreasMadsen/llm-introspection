@@ -33,7 +33,7 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
     dataset_category = DatasetCategories.SENTIMENT
 
     async def _query_sentiment(
-        self, parahraph: str, generate_text: RequestCapture
+        self, paragraph: str, generate_text: RequestCapture
     ) -> str:
         user_prompt = ''
         if self._is_enabled('c-persona-you'):
@@ -49,7 +49,7 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
         user_prompt += (
             ' Answer only "positive", "negative", "neutral", or "unknown".'
             f' Do not explain the answer.\n\n'
-            f'Paragraph: {parahraph}'
+            f'Paragraph: {paragraph}'
         )
 
         return await generate_text([
