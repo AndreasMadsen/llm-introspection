@@ -14,10 +14,12 @@ class IMDBDataset(SentimentDataset):
     _split_test = 'test'
 
     @cached_property
-    def label_str2int(self) -> Mapping[Literal['negative', 'positive'], int]:
+    def _label_int2str(self) -> Mapping[int, Literal['negative', 'positive']]:
+        label_def = self.info.features['label'] # type: ignore
+
         return {
-            'negative': self._label_def.names.index('neg'),
-            'positive': self._label_def.names.index('pos')
+            label_def.names.index('neg'): 'negative',
+            label_def.names.index('pos'): 'positive'
         }
 
     def _builder(self, cache_dir):
@@ -26,6 +28,6 @@ class IMDBDataset(SentimentDataset):
     def _restructure(self, obs, idx) -> SentimentObservation:
         return {
             'text': obs['text'],
-            'label': obs['label'],
+            'label': self._label_int2str[obs['label']],
             'idx': idx
         }

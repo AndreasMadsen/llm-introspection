@@ -104,12 +104,12 @@ class ClassifyAggregator(AbstractAggregator[ClassifyResult, ClassifyAggregateRes
         }
 
 class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggregateResult]):
-    _answer_counts: TableCounter[Literal['label', 'sentiment', 'ability'], IntrospectAggregateAnswer, IntrospectResult]
+    _answer_counts: TableCounter[Literal['label', 'predict', 'ability'], IntrospectAggregateAnswer, IntrospectResult]
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._answer_counts = TableCounter(('label', 'sentiment', 'ability'))
+        self._answer_counts = TableCounter(('label', 'predict', 'ability'))
         self._introspect_count = 0
         self._correct_count = 0
         self._missmatch_count = 0
@@ -138,12 +138,12 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
         }
 
 class FaithfulAggregator(AbstractAggregator[FaithfulResult, FaithfulAggregateResult]):
-    _answer_counts: TableCounter[Literal['label', 'sentiment', 'explain_sentiment'], FaithfulAggregateAnswer, FaithfulResult]
+    _answer_counts: TableCounter[Literal['label', 'predict', 'explain_predict'], FaithfulAggregateAnswer, FaithfulResult]
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._answer_counts = TableCounter(('label', 'sentiment', 'explain_sentiment'))
+        self._answer_counts = TableCounter(('label', 'predict', 'explain_predict'))
         self._faithful_count = 0
         self._correct_count = 0
         self._missmatch_count = 0

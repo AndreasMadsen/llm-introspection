@@ -9,8 +9,8 @@ from introspect.types import IntrospectResult, DatasetSplits, GenerateError, Off
 async def test_database_basic_put():
     obs: IntrospectResult = {
         'paragraph': 'content',
-        'sentiment_source': 'positive',
-        'sentiment': 'positive',
+        'predict_source': 'positive',
+        'predict': 'positive',
         'correct': False,
         'ability_source': 'yes',
         'ability': 'yes',
