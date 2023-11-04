@@ -3,6 +3,7 @@ from typing import TypedDict, Literal, Required, NotRequired
 
 import aiohttp
 import asyncio
+import traceback
 
 from ..types import GenerateConfig, GenerateError, GenerateResponse
 from ._abstract_client import AbstractClient, RetryRequest
@@ -124,4 +125,5 @@ class TGIClient(AbstractClient[TGIInfo]):
         except ValidationError as err:
             raise GenerateError('LLM generate failed') from err
         except (asyncio.TimeoutError, aiohttp.ClientOSError, aiohttp.ServerDisconnectedError, GenerationError) as err:
+            traceback.print_exception(err)
             raise RetryRequest('Connection error') from err

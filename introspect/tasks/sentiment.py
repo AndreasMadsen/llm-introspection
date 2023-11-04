@@ -3,12 +3,6 @@ import re
 import json
 from typing import Literal, TypeAlias
 
-from ._abstract_tasks import \
-    AbstractTask, \
-    ClassifyTask, IntrospectTask, FaithfulTask, \
-    TaskResultType, PartialTaskResultType
-from ._request_capture import RequestCapture
-
 from ..dataset import SentimentDataset
 from ..types import \
     TaskCategories, DatasetCategories, \
@@ -16,6 +10,13 @@ from ..types import \
     PartialClassifyResult, ClassifyResult, \
     PartialIntrospectResult, IntrospectResult, \
     PartialFaithfulResult, FaithfulResult
+
+from ._abstract_tasks import \
+    AbstractTask, \
+    ClassifyTask, IntrospectTask, FaithfulTask, \
+    TaskResultType, PartialTaskResultType
+from ._request_capture import RequestCapture
+from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 
 def _startwith(content: str, options: list[str]) -> bool:
     return any(content.startswith(pattern) for pattern in options)
@@ -31,6 +32,15 @@ FaithfulSentimentResult: TypeAlias = FaithfulResult[SentimentLabel, SentimentPre
 
 class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.SENTIMENT
+
+    def _make_counterfactual_sentiment(self, sentiment: SentimentPredict|None) -> SentimentLabel|None:
+        match sentiment:
+            case 'positive':
+                return 'negative'
+            case 'negative':
+                return 'positive'
+            case _:
+                return None
 
     async def _query_sentiment(
         self, paragraph: str, generate_text: RequestCapture
@@ -67,6 +77,17 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
                 return observation['label'] == sentiment
             case _:
                 return False
+
+    def _process_is_introspect(self, ability: Literal['yes', 'no']|None, sentiment: SentimentPredict|None) -> bool|None:
+        match ability:
+            case 'yes':
+                introspect = sentiment in ('negative', 'positive', 'neutral')
+            case 'no':
+                introspect = sentiment == 'unknown'
+            case _:
+                introspect = None
+
+        return introspect
 
     def _process_redact_words(self, observation: SentimentObservation, important_words: list[str]) -> str:
         return re.sub(
@@ -113,62 +134,6 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             sentiment = None
 
         return sentiment
-
-    def _extract_ability(self, source: str) -> Literal['yes', 'no']|None:
-        match source.lower():
-            case 'yes' | 'yes.':
-                ability = 'yes'
-            case 'no' | 'no.':
-                ability = 'no'
-            case _:
-                ability = None
-        return ability
-
-    def _extract_paragraph(self, source: str) -> str|None:
-        # Paragraph: {content ...}
-        if source.startswith('Paragraph: '):
-            return source.removeprefix('Paragraph: ')
-
-        # Sure, here is the paragraph with positive sentiment.\n
-        # \n
-        # {content ...}
-        # Paragraph:\n
-        # \n
-        # {content ...}
-        paragraph = source
-        if _startwith(source, ['Sure, here\'s', 'Sure, here is', 'Sure! Here is', 'Sure! Here\'s', 'Sure thing! Here\'s',
-                               'Here is', 'Here\'s', 'Paragraph:']):
-            first_break_index = source.find('\n\n')
-            if first_break_index >= 0:
-                paragraph = source[first_break_index + 2:]
-
-        # Remove qoutes
-        # "{content ...}"
-        if paragraph.startswith('"') and paragraph.endswith('"'):
-            return paragraph[1:-1]
-
-        return paragraph
-
-    def _extract_list_content(self, source: str) -> list[str]|None:
-        # The source tends to have the format:
-        # Sure, here are the most important words for determining the sentiment of the paragraph:
-        #
-        # 1. Awful
-        # 2. Worst
-        # 3. "fun" (appears twice)
-        list_content = []
-        for line in source.splitlines():
-            if m := re.match(r'^(?:\d+\.|\*|•|-)[ \t]*(.*)$', line):
-                content, = m.groups()
-                if content.startswith('"') and (endqoute_pos := content.rfind('"')) > 0:
-                    content = content[1:endqoute_pos]
-
-                if len(content) > 0:
-                    list_content.append(content)
-
-        if len(list_content) == 0:
-            return None
-        return list_content
 
 class SentimentClassifyTask(ClassifyTask[SentimentDataset, SentimentObservation],
                             SentimentTask[PartialClassifySentimentResult, ClassifySentimentResult]):
@@ -222,15 +187,8 @@ class SentimentAnswerableTask(IntrospectTask[SentimentDataset, SentimentObservat
                 'assistant': None
             }
         ])
-        ability = self._extract_ability(ability_source)
-
-        match ability:
-            case 'yes':
-                introspect = sentiment in ('negative', 'positive', 'neutral')
-            case 'no':
-                introspect = sentiment == 'uknown'
-            case _:
-                introspect = None
+        ability = extract_ability(ability_source)
+        introspect = self._process_is_introspect(ability, sentiment)
 
         return {
             'paragraph': paragraph,
@@ -253,11 +211,7 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        if sentiment == 'positive':
-            opposite_sentiment = 'negative'
-        else:
-            opposite_sentiment = 'positive'
-
+        opposite_sentiment = self._make_counterfactual_sentiment(sentiment)
         user_prompt = ''
         if self._is_enabled('e-implcit-target'):
             if self._is_enabled('e-persona-you'):
@@ -279,13 +233,16 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
             f' Do not explain the answer.\n\n'
             f'Paragraph: {paragraph}'
         )
-        counterfactual_source = await generate_text([
-            {
-                'user': user_prompt,
-                'assistant': None
-            }
-        ])
-        counterfactual = self._extract_paragraph(counterfactual_source)
+
+        counterfactual_source, counterfactual = None, None
+        if opposite_sentiment is not None:
+            counterfactual_source = await generate_text([
+                {
+                    'user': user_prompt,
+                    'assistant': None
+                }
+            ])
+            counterfactual = extract_paragraph(counterfactual_source)
 
         counterfactual_sentiment_source, counterfactual_sentiment = None, None
         if counterfactual is not None:
@@ -355,7 +312,7 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
                 'assistant': None
             }
         ])
-        redacted = self._extract_paragraph(redacted_source)
+        redacted = extract_paragraph(redacted_source)
 
         redacted_sentiment_source, redacted_sentiment = None, None
         if redacted is not None:
@@ -408,7 +365,7 @@ class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservatio
                 'assistant': None
             }
         ])
-        important_words = self._extract_list_content(importance_source)
+        important_words = extract_list_content(importance_source)
 
         redacted = None
         if important_words is not None:

@@ -13,7 +13,7 @@ class RetryRequest(Exception):
 
 class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
     def __init__(self, base_url: str, cache: GenerationCache|None = None,
-                 connect_timeout_sec: int=30*60, max_reconnects: int=3) -> None:
+                 connect_timeout_sec: int=30*60, max_reconnects: int=5) -> None:
         """Create a client that can be used to run a generative inference
 
         Args:
@@ -51,8 +51,11 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
     async def _generate(self, prompt: str, config: GenerateConfig) -> GenerateResponse:
         ...
 
-    async def _await_connection(self):
+    async def _await_connection(self, presleep=0):
         start_time = time.time()
+
+        if presleep > 0:
+            await asyncio.sleep(presleep)
 
         while time.time() < start_time + self._connect_timeout_sec:
             if await self._try_connect():
@@ -81,7 +84,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         if self._is_connected:
             self._is_connected = False
             self._remaning_reconnects -= 1
-            self._on_connection = asyncio.create_task(self._await_connection())
+            self._on_connection = asyncio.create_task(self._await_connection(presleep=10))
 
     async def info(self) -> InfoType:
         """Get info about server
