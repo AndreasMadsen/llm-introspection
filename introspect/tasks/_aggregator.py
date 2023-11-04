@@ -73,12 +73,12 @@ class AbstractAggregator(Generic[ResultAnswerType, AggregateResultType], metacla
         ...
 
 class ClassifyAggregator(AbstractAggregator[ClassifyResult, ClassifyAggregateResult]):
-    _answer_counts: TableCounter[Literal['label', 'sentiment'], ClassifyAggregateAnswer, ClassifyResult]
+    _answer_counts: TableCounter[Literal['label', 'predict'], ClassifyAggregateAnswer, ClassifyResult]
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._answer_counts = TableCounter(('label', 'sentiment'))
+        self._answer_counts = TableCounter(('label', 'predict'))
         self._correct_count = 0
         self._missmatch_count = 0
 
