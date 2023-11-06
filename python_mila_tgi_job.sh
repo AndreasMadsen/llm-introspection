@@ -30,10 +30,10 @@ tgi_port=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_argument("--model-name"); print(p.parse_known_args()[0].model_name)' "${@:2}")
 
 # start TGI as a background process
-MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 \
+MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 MAX_BATCH_TOTAL_TOKENS=49152 \
     VALIDATION_WORKERS=4 PORT=$tgi_port \
     MODEL_ID="${model_id[$model_name]}" \
-    MAX_RESTARTS=3 bash monitor.sh bash tgi/tgi-server-mila.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
+    MAX_RESTARTS=5 bash monitor.sh bash tgi/tgi-server-mila.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
 TGI_PID=$!
 echo "Started TGI server as background process [PID: ${TGI_PID}]"
 
