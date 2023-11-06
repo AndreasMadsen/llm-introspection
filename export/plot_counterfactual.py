@@ -12,6 +12,7 @@ import numpy as np
 from introspect.dataset import datasets
 from introspect.types import DatasetSplits, SystemMessage, TaskCategories
 from introspect.util import generate_experiment_id
+from introspect.plot import annotation
 
 def select_target_metric(df):
     idx, cols = pd.factorize('results.' + df.loc[:, 'target_metric'])
@@ -64,7 +65,7 @@ parser.add_argument('--split',
                     help='The dataset split to evaluate on')
 parser.add_argument('--task',
                     action='store',
-                    default=TaskCategories.ANSWERABLE,
+                    default=TaskCategories.COUNTERFACTUAL,
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
@@ -78,7 +79,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args, unknown = parser.parse_known_args()
 
-    experiment_id = generate_experiment_id('introspect',
+    experiment_id = generate_experiment_id('faithful',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
         task=args.task,
@@ -101,7 +102,15 @@ if __name__ == "__main__":
                data['args']['dataset'] == args.dataset and \
                data['args']['split'] == args.split and \
                data['args']['task'] == args.task:
-                data['args']['task_config'] = '-'.join(data['args']['task_config'])
+                data['plot'] = {'counterfactual_target': 'explicit', 'persona': 'no-persona'}
+
+                if 'e-implcit-target' in data['args']['task_config']:
+                    data['plot']['counterfactual_target'] = 'implicit'
+
+                if 'e-persona-human' in data['args']['task_config']:
+                    data['plot']['persona'] = 'human-persona'
+                elif 'e-persona-you' in data['args']['task_config']:
+                     data['plot']['persona'] = 'you-persona'
                 results.append(data)
 
         # Convert results into a flat DataFrame
@@ -116,23 +125,38 @@ if __name__ == "__main__":
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
         df = df.groupby([
             'args.model_name', 'args.system_message',
-            'args.task', 'args.task_config',
+            'args.task', 'plot.counterfactual_target', 'plot.persona',
             'args.dataset', 'args.split',
             'args.seed',
-            'results.answer.ability', 'results.answer.sentiment'],
+            'results.answer.explain_predict', 'results.answer.predict'],
             as_index=False
         ).agg({
             'results.answer.count': 'sum'
         })
 
         p = (
-            p9.ggplot(df, p9.aes(x='results.answer.sentiment')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.ability'), stat="identity") +
-            p9.facet_grid('. ~ args.task_config')
+            p9.ggplot(df, p9.aes(x='results.answer.predict')) +
+            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.explain_predict'), stat="identity") +
+            p9.facet_grid('plot.persona ~ plot.counterfactual_target',
+                          labeller=(annotation.counterfactual_target | annotation.persona).labeller) + # type: ignore
+            p9.scale_y_continuous(
+                name='Count'
+            ) +
+            p9.scale_x_discrete(
+                #breaks=annotation.predicted_sentiment.breaks,
+                #labels=annotation.predicted_sentiment.labels,
+                name='Predicted sentiment'
+            ) +
+            p9.scale_fill_discrete(
+                 breaks=annotation.predicted_sentiment.breaks,
+                 labels=annotation.predicted_sentiment.labels,
+                 aesthetics=["fill"],
+                 name='Predicted sentiment of explanation'
+            )
         )
 
         if args.format == 'paper':
-            size = (3.03209, 3.5)
+            size = (3.03209, 4.5)
             p += p9.guides(fill=p9.guide_legend(ncol=2))
             p += p9.theme(
                 text=p9.element_text(size=10, fontname='Times New Roman'),
