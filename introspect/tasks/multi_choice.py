@@ -133,7 +133,7 @@ class MultiChoiceClassifyTask(ClassifyTask[MultiChoiceDataset, MultiChoiceObserv
         correct = self._process_is_correct(observation, choice)
 
         return {
-            'paragraph': f'Question: {question}.\n Options: {choices},\n Paragraph: {paragraph}',
+            'paragraph': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
             'predict_source': choice_source,
             'predict': choice,
             'correct': correct
@@ -161,7 +161,7 @@ class MultiChoiceAnswerableTask(IntrospectTask[MultiChoiceDataset, MultiChoiceOb
             user_prompt += f'Is it possible to answer the question "{question}" based on the following paragraph?'
 
         if self._is_enabled('i-options'):
-            user_prompt += f' The possible answers are {self._make_answer_choices(choices)}.'
+            user_prompt += f' The possible answers to the question are {self._make_answer_choices(choices)}.'
 
         user_prompt += (
             f' Answer only "yes" or "no".'
@@ -179,7 +179,7 @@ class MultiChoiceAnswerableTask(IntrospectTask[MultiChoiceDataset, MultiChoiceOb
         introspect = self._process_is_introspect(ability, choice)
 
         return {
-            'paragraph': paragraph,
+            'paragraph': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
             'predict_source': choice_source,
             'predict': choice,
             'correct': correct,
@@ -235,7 +235,7 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
             faithful = counterfactual_choice == alternative_choice
 
         return {
-            'paragraph': paragraph,
+            'paragraph': f'Question: {question}.\nOptions: {choices}\nAlternative: {alternative_choice}\nParagraph: {paragraph}',
             'predict_source': choice_source,
             'predict': choice,
             'correct': correct,
@@ -306,7 +306,7 @@ class MultiChoiceRedactedTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObserv
             faithful = redacted_choice == 'unknown'
 
         return {
-            'paragraph': paragraph,
+            'paragraph': f'Question: {question}.\nParagraph: {paragraph}',
             'predict_source': choice_source,
             'predict': choice,
             'correct': correct,
@@ -370,7 +370,7 @@ class MultiChoiceImportanceTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObse
             explain = json.dumps(important_words) + '\n\n' + redacted
 
         return {
-            'paragraph': paragraph,
+            'paragraph': f'Question: {question}.\nParagraph: {paragraph}',
             'predict_source': choice_source,
             'predict': choice,
             'correct': correct,
