@@ -13,7 +13,7 @@ class RetryRequest(Exception):
 
 class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
     def __init__(self, base_url: str, cache: GenerationCache|None = None,
-                 connect_timeout_sec: int=30*60, max_reconnects: int=5) -> None:
+                 connect_timeout_sec: int=60*60, max_reconnects: int=5) -> None:
         """Create a client that can be used to run a generative inference
 
         Args:
@@ -60,7 +60,6 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         while time.time() < start_time + self._connect_timeout_sec:
             if await self._try_connect():
                 self._is_connected = True
-                print('connection made')
                 return
 
             await asyncio.sleep(10)
@@ -77,7 +76,6 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
     def _handle_disconnect(self):
         """Renew state assuming the connection is lost
         """
-        print('handle disconnect')
         if self._remaning_reconnects <= 0:
             raise IOError('Exhaused all allowed reconnection attempts')
 

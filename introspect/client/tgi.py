@@ -110,7 +110,7 @@ class TGIClient(AbstractClient[TGIInfo]):
         }
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5 * 60)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(self._connect_timeout_sec)) as session:
                 async with session.post(self._base_url, json=payload) as response:
                     answer = await response.json()
 

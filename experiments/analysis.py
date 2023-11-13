@@ -89,7 +89,7 @@ parser.add_argument('--seed',
                     help='Seed used for generation')
 parser.add_argument('--max-workers',
                     action='store',
-                    default=100,
+                    default=50,
                     type=int,
                     help='Max number of parallel async tasks')
 parser.add_argument('--debug',

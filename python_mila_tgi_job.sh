@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=24
 #SBATCH --mem-per-gpu=32G
 #SBATCH --time=2:59:00
-#SBATCH --partition=short-unkillable
+#SBATCH --partition=long
 
 # Check bash paramaters
 if [ -z "${LOGDIR}" ]; then
