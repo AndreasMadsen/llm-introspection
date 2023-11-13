@@ -184,6 +184,17 @@ class LocalBabiDataset(datasets.GeneratorBasedBuilder):
         ]
 
     def _generate_examples(self, filepath):
+        def push_observations(story_id, story_observaions):
+            choices = list(set(obs['label'] for obs in story_observaions))
+
+            for paragraph_id, story_observaion in enumerate(story_observaions):
+                yield f'{story_id}-{paragraph_id}', {
+                    'paragraph': ' Then, '.join(story_observaion['paragraph']),
+                    'question': story_observaion['question'],
+                    'choices': choices,
+                    'label': story_observaion['label'],
+                }
+
         with open(filepath) as fp:
             story = []
             story_id = 0
@@ -195,16 +206,8 @@ class LocalBabiDataset(datasets.GeneratorBasedBuilder):
                 line_data = line_tid_striped.split('\t')
 
                 # Start of a new paragraph construction
-                if line == '' or tid == '1':
-                    choices = list(set(obs['label'] for obs in story_observaions))
-
-                    for paragraph_id, story_observaion in enumerate(story_observaions):
-                        yield f'{story_id}-{paragraph_id}', {
-                            'paragraph': ' '.join(story_observaion['paragraph']),
-                            'question': story_observaion['question'],
-                            'choices': choices,
-                            'label': story_observaion['label'],
-                        }
+                if tid == '1':
+                    yield from push_observations(story_id, story_observaions)
 
                     story = []
                     story_observaions = []
@@ -217,6 +220,8 @@ class LocalBabiDataset(datasets.GeneratorBasedBuilder):
                 else:
                     story_observaions.append({
                         'paragraph': story[:],
-                        'question': line_data[1].strip(),
+                        'question': line_data[0].strip(),
                         "label": line_data[1].strip()
                     })
+
+            yield from push_observations(story_id, story_observaions)
