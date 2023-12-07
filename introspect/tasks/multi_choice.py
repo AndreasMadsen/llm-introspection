@@ -56,7 +56,8 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
             user_prompt += f'Consider the following paragraph, and answer the question: "{question}"'
 
         if not self._is_enabled('c-no-redacted'):
-            user_prompt += ' The paragraph can contain redacted words marked with [REDACTED].'
+            mask_work = self._ifelse_enabled("m-removed", "removed", "redacted")
+            user_prompt += f' The paragraph can contain {mask_work} words marked with {self._mask_special_token}.'
 
         user_prompt += (
             f' Answer either {self._make_answer_choices(choices + ["unknown"])} if the question can not be answered.'
@@ -114,7 +115,7 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
     def _process_redact_words(self, observation: MultiChoiceObservation, important_words: list[str]) -> str:
         return re.sub(
             r'\b(?:' + '|'.join(re.escape(word) for word in important_words) + r')\b',
-            '[REDACTED]',
+            self._mask_special_token,
             observation['paragraph'],
             flags=re.IGNORECASE
         )
@@ -268,11 +269,11 @@ class MultiChoiceRedactedTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObserv
             else:
                 user_prompt += f'Redact the following paragraph such that the question "{question}" can no longer be answered,'
 
-            user_prompt += ' by replacing important words with [REDACTED].'
+            user_prompt += f' by replacing important words with {self._make_answer_choices(choices)}.'
         else:
             user_prompt += (
                 f'Redact the most important words for answering {question} given the following paragraph,'
-                ' by replacing important words with [REDACTED],'
+                f' by replacing important words with {self._make_answer_choices(choices)},'
             )
             if self._is_enabled('e-persona-you'):
                 user_prompt += ' such that without these words you can not answer the question.'

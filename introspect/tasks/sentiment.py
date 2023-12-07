@@ -54,7 +54,8 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             user_prompt += 'What is the sentiment of the following paragraph?'
 
         if not self._is_enabled('c-no-redacted'):
-            user_prompt += ' The paragraph can contain redacted words marked with [REDACTED].'
+            mask_work = self._ifelse_enabled("m-removed", "removed", "redacted")
+            user_prompt += f' The paragraph can contain {mask_work} words marked with {self._mask_special_token}.'
 
         user_prompt += (
             ' Answer only "positive", "negative", "neutral", or "unknown".'
@@ -92,7 +93,7 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
     def _process_redact_words(self, observation: SentimentObservation, important_words: list[str]) -> str:
         return re.sub(
             r'\b(?:' + '|'.join(re.escape(word) for word in important_words) + r')\b',
-            '[REDACTED]',
+            self._mask_special_token,
             observation['text'],
             flags=re.IGNORECASE
         )
@@ -285,11 +286,11 @@ class SentimentRedactedTask(FaithfulTask[SentimentDataset, SentimentObservation]
             else:
                 user_prompt += 'Redact the following paragraph such that the sentiment can no longer be determined,'
 
-            user_prompt += ' by replacing important words with [REDACTED].'
+            user_prompt += f' by replacing important words with {self._mask_special_token}.'
         else:
             user_prompt += (
                 'Redact the most important words for determining the sentiment of the following paragraph,'
-                ' by replacing important words with [REDACTED],'
+                f' by replacing important words with {self._mask_special_token},'
             )
 
             if self._is_enabled('e-persona-you'):

@@ -166,7 +166,9 @@ async def main():
 
         for classify_task_config in (
             [] if args.task == TaskCategories.CLASSIFY
-            else list(set(args.task_config) & set(['c-no-redacted', 'c-persona-human', 'c-persona-you']))
+            else list(set(args.task_config) & set([
+                'm-removed', 'c-no-redacted', 'c-persona-human', 'c-persona-you'
+            ]))
         )
     ])
 
