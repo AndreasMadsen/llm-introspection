@@ -1,6 +1,7 @@
 
 from abc import ABCMeta, abstractmethod
-from typing import TypeVar, Generic, Sequence
+from typing import TypeVar, Generic, Sequence, Literal
+from functools import cached_property
 
 from introspect.dataset import AbstractDataset
 from introspect.model import AbstractModel
@@ -18,6 +19,9 @@ DatasetType = TypeVar('DatasetType', bound=AbstractDataset)
 ObservationType = TypeVar('ObservationType', bound=Observation)
 TaskResultType = TypeVar('TaskResultType', ClassifyResult, IntrospectResult, FaithfulResult)
 PartialTaskResultType = TypeVar('PartialTaskResultType', PartialClassifyResult, PartialIntrospectResult, PartialFaithfulResult)
+
+XstrType = TypeVar('XstrType', bound=str)
+YstrType = TypeVar('YstrType', bound=str)
 
 class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, TaskResultType], metaclass=ABCMeta):
     _dataset: DatasetType
@@ -47,11 +51,18 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
         self._model = model
         self._config = set(config)
 
+    @cached_property
+    def _mask_special_token(self) -> Literal['[REMOVED]', '[REDACTED]']:
+        return self._ifelse_enabled('m-removed', '[REMOVED]', '[REDACTED]')
+
     def _is_enabled(self, option: str) -> bool:
         return option in self._config
 
-    def _if_enabled(self, option: str, content: str) -> str:
+    def _if_enabled(self, option: str, content: XstrType) -> XstrType|Literal['']:
         return content if self._is_enabled(option) else ''
+
+    def _ifelse_enabled(self, option: str, true: XstrType, false: YstrType) -> XstrType|YstrType:
+        return true if self._is_enabled(option) else false
 
     @abstractmethod
     def make_aggregator(self) -> AbstractAggregator:
