@@ -45,6 +45,19 @@ task_requests = [
     ),
     RequestExpectations(
         task_type=SentimentClassifyTask,
+        config=['m-removed'],
+        expected_requests={
+            '<s>[INST] What is the sentiment of the following paragraph?'
+            ' The paragraph can contain removed words marked with [REMOVED].'
+            ' Answer only "positive", "negative", "neutral", or "unknown".'
+            ' Do not explain the answer.'
+            '\n'
+            '\n'
+            'Paragraph: [PARAGRAPH] [/INST]': None
+        }
+    ),
+    RequestExpectations(
+        task_type=SentimentClassifyTask,
         config=['c-persona-you'],
         expected_requests={
             '<s>[INST] What would you classify the sentiment of the following paragraph as?'

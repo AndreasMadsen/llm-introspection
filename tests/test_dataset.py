@@ -20,9 +20,9 @@ sentiment_datasets = [
 ]
 
 multi_choice_datasets = [
-    DatasetExpectations('bAbI-1', 7996, 1999, 995),
-    DatasetExpectations('bAbI-2', 7996, 1999, 995),
-    DatasetExpectations('bAbI-3', 7996, 1999, 995),
+    DatasetExpectations('bAbI-1', 8000, 2000, 1000),
+    DatasetExpectations('bAbI-2', 8000, 2000, 1000),
+    DatasetExpectations('bAbI-3', 8000, 2000, 1000),
     DatasetExpectations('MCTest', 1200, 200, 600),
 ]
 
