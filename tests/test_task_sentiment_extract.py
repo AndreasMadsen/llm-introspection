@@ -7,6 +7,7 @@ from introspect.model import Llama2Model
 from introspect.client import OfflineClient
 from introspect.dataset import IMDBDataset
 from introspect.tasks import SentimentClassifyTask
+from introspect.tasks._common_extract import extract_list_content, extract_ability, extract_paragraph
 
 @pytest.fixture
 def task() ->SentimentClassifyTask:
@@ -80,7 +81,7 @@ def test_task_sentiment_extract_sentiment(task: SentimentClassifyTask):
     assert c('no') == None
 
 def test_task_sentiment_extract_ability(task: SentimentClassifyTask):
-    c = task._extract_ability
+    c = extract_ability
 
     # yes
     assert c('Yes') == 'yes'
@@ -99,7 +100,7 @@ def test_task_sentiment_extract_ability(task: SentimentClassifyTask):
     assert c('negative') == None
 
 def test_task_sentiment_extract_paragraph(task: SentimentClassifyTask):
-    c = task._extract_paragraph
+    c = extract_paragraph
 
     p = ('This film is reminiscent of Godard\'s Masculin, féminin, and I highly'
          ' recommend checking out both films. The film boasts two standout'
@@ -160,7 +161,7 @@ def test_task_sentiment_extract_paragraph(task: SentimentClassifyTask):
     assert c(f'Paragraph:\n\n{p}') == p
 
 def test_task_sentiment_extract_list_content(task: SentimentClassifyTask):
-    c = task._extract_list_content
+    c = extract_list_content
 
     # ordered
     assert c('Sure, here are the most important words for determining the sentiment of the paragraph:\n'
