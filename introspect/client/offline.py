@@ -20,4 +20,6 @@ class OfflineClient(AbstractClient[OfflineInfo]):
        return {}
 
     async def _generate(self, prompt, config) -> GenerateResponse:
-        raise OfflineError('An LLM client is not used')
+        error = OfflineError('An LLM client is not used')
+        error.add_note(f'The following prompt was not cached: {prompt}')
+        raise error
