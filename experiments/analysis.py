@@ -107,6 +107,12 @@ parser.add_argument('--clean-cache',
                     default=False,
                     type=bool,
                     help='Remove cache')
+parser.add_argument('--dry',
+                    action=argparse.BooleanOptionalAction,
+                    default=False,
+                    type=bool,
+                    help='Don\'t modify files')
+
 
 async def main():
     durations = {}
@@ -172,9 +178,9 @@ async def main():
     durations['setup'] = timer() - setup_time_start
 
     # cleanup old database
-    if args.clean_database:
+    if args.clean_database and not args.dry:
         database.remove()
-    if args.clean_cache:
+    if args.clean_cache and not args.dry:
         cache.remove()
 
     # connect to inference server
@@ -191,7 +197,8 @@ async def main():
                 answer = await task(obs)
             except GenerateError as error:
                 answer = error
-            await db.put(args.split, obs['idx'], answer)
+            if not args.dry:
+                await db.put(args.split, obs['idx'], answer)
             return answer
 
         # process train split
@@ -211,12 +218,13 @@ async def main():
         durations['eval'] = aggregator.total_duration
 
     # save results
-    with open((args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.json'), 'w') as fp:
-        json.dump({
-            'args': { name: value for name, value in vars(args).items() if name != 'persistent_dir' },
-            'results': results,
-            'durations': durations
-        }, fp)
+    if not args.dry:
+        with open((args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.json'), 'w') as fp:
+            json.dump({
+                'args': { name: value for name, value in vars(args).items() if name != 'persistent_dir' },
+                'results': results,
+                'durations': durations
+            }, fp)
 
 if __name__ == '__main__':
     asyncio.run(main())
