@@ -65,7 +65,7 @@ parser.add_argument('--split',
                     help='The dataset split to evaluate on')
 parser.add_argument('--task',
                     action='store',
-                    default=TaskCategories.COUNTERFACTUAL,
+                    default=TaskCategories.REDACTED,
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
@@ -77,9 +77,9 @@ parser.add_argument('--seed',
 
 if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('faithful',
+    experiment_id = generate_experiment_id('faithful_classes',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
         task=args.task,
@@ -102,11 +102,11 @@ if __name__ == "__main__":
                data['args']['dataset'] == args.dataset and \
                data['args']['split'] == args.split and \
                data['args']['task'] == args.task:
-                data['plot'] = {'counterfactual_target': 'explicit', 'persona': 'no-persona'}
+                data['plot'] = {'prompt_length': 'long', 'persona': 'no-persona'}
+                if 'e-short' in data['args']['task_config']:
+                    data['plot']['prompt_length'] = 'short'
 
-                if 'e-implcit-target' in data['args']['task_config']:
-                    data['plot']['counterfactual_target'] = 'implicit'
-
+                data['plot']['persona'] = 'no-persona'
                 if 'e-persona-human' in data['args']['task_config']:
                     data['plot']['persona'] = 'human-persona'
                 elif 'e-persona-you' in data['args']['task_config']:
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
         df = df.groupby([
             'args.model_name', 'args.system_message',
-            'args.task', 'plot.counterfactual_target', 'plot.persona',
+            'args.task', 'plot.persona', 'plot.prompt_length',
             'args.dataset', 'args.split',
             'args.seed',
             'results.answer.explain_predict', 'results.answer.predict'],
@@ -137,14 +137,14 @@ if __name__ == "__main__":
         p = (
             p9.ggplot(df, p9.aes(x='results.answer.predict')) +
             p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.explain_predict'), stat="identity") +
-            p9.facet_grid('plot.persona ~ plot.counterfactual_target',
-                          labeller=(annotation.counterfactual_target | annotation.persona).labeller) + # type: ignore
+            p9.facet_grid('plot.persona ~ plot.prompt_length',
+                          labeller=(annotation.prompt_length | annotation.persona).labeller) + # type: ignore
             p9.scale_y_continuous(
                 name='Count'
             ) +
             p9.scale_x_discrete(
-                #breaks=annotation.predicted_sentiment.breaks,
-                #labels=annotation.predicted_sentiment.labels,
+                breaks=annotation.predicted_sentiment.breaks,
+                labels=annotation.predicted_sentiment.labels,
                 name='Predicted sentiment'
             ) +
             p9.scale_fill_discrete(
@@ -152,7 +152,8 @@ if __name__ == "__main__":
                  labels=annotation.predicted_sentiment.labels,
                  aesthetics=["fill"],
                  name='Predicted sentiment of explanation'
-            )
+            ) +
+            p9.ggtitle(f'{args.dataset} - Redacted')
         )
 
         if args.format == 'paper':

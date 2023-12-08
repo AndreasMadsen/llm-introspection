@@ -77,9 +77,9 @@ parser.add_argument('--seed',
 
 if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('introspect',
+    experiment_id = generate_experiment_id('introspect_classes',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
         task=args.task,

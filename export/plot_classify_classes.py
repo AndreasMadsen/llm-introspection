@@ -65,7 +65,7 @@ parser.add_argument('--split',
                     help='The dataset split to evaluate on')
 parser.add_argument('--task',
                     action='store',
-                    default=TaskCategories.IMPORTANCE,
+                    default=TaskCategories.CLASSIFY,
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
@@ -77,9 +77,9 @@ parser.add_argument('--seed',
 
 if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('faithful',
+    experiment_id = generate_experiment_id('classify_classes',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
         task=args.task,
@@ -102,10 +102,12 @@ if __name__ == "__main__":
                data['args']['dataset'] == args.dataset and \
                data['args']['split'] == args.split and \
                data['args']['task'] == args.task:
-                data['plot'] = {'persona': 'no-persona'}
-                if 'e-persona-human' in data['args']['task_config']:
+                data['plot'] = { 'redact': 'redact', 'persona': 'no-persona' }
+                if 'c-no-redacted' in data['args']['task_config']:
+                    data['plot']['redact'] = 'no-redact'
+                if 'c-persona-human' in data['args']['task_config']:
                     data['plot']['persona'] = 'human-persona'
-                elif 'e-persona-you' in data['args']['task_config']:
+                elif 'c-persona-you' in data['args']['task_config']:
                      data['plot']['persona'] = 'you-persona'
                 results.append(data)
 
@@ -119,35 +121,25 @@ if __name__ == "__main__":
 
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
-        df = df.groupby([
-            'args.model_name', 'args.system_message',
-            'args.task', 'plot.persona',
-            'args.dataset', 'args.split',
-            'args.seed',
-            'results.answer.explain_predict', 'results.answer.predict'],
-            as_index=False
-        ).agg({
-            'results.answer.count': 'sum'
-        })
+
+        print(df.loc[:, ['plot.persona', 'plot.redact', 'results.answer.predict', 'results.answer.count', 'results.answer.label']])
 
         p = (
             p9.ggplot(df, p9.aes(x='results.answer.predict')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.explain_predict'), stat="identity") +
-            p9.facet_grid('plot.persona ~ .', labeller=(annotation.persona).labeller) + # type: ignore
+            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.label'), stat="identity") +
+            p9.facet_grid('plot.persona ~ plot.redact',
+                          labeller=(annotation.persona | annotation.redact).labeller) + # type: ignore
             p9.scale_y_continuous(
                 name='Count'
             ) +
             p9.scale_x_discrete(
-                breaks=annotation.predicted_sentiment.breaks,
-                labels=annotation.predicted_sentiment.labels,
                 name='Predicted sentiment'
             ) +
             p9.scale_fill_discrete(
-                 breaks=annotation.predicted_sentiment.breaks,
-                 labels=annotation.predicted_sentiment.labels,
                  aesthetics=["fill"],
-                 name='Predicted sentiment of explanation'
-            )
+                 name='True sentiment'
+            ) +
+            p9.ggtitle(f'{args.dataset} - Classify')
         )
 
         if args.format == 'paper':
