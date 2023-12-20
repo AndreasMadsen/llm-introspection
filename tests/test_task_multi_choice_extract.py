@@ -27,6 +27,8 @@ def test_task_multi_choice_extract_choice(task: MultiChoiceClassifyTask):
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'b) The answer is (b)') == 'Miami'
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'b)') == 'Miami'
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], '(b)') == 'Miami'
+    assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'b') == 'Miami'
+    assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'Answer: b') == 'Miami'
 
     # Choice b) with only content
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'The city where Alyssa is in is Miami.') == 'Miami'
@@ -39,3 +41,6 @@ def test_task_multi_choice_extract_choice(task: MultiChoiceClassifyTask):
     # Choice b) on another line
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'The answer to the quetion is:\nb) The city where Alyssa is in is Miami.') == 'Miami'
     assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'The answer to the quetion is:\nb) The city where Alyssa is in is Miami.\n') == 'Miami'
+
+    # Choice b) on another line with Answer: prefix
+    assert c(['trip', 'Miami', 'Atlanta', 'beach'], 'Where did Sandra go?\nAnswer: b') == 'Miami'
