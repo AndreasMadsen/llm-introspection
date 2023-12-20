@@ -33,14 +33,12 @@ FaithfulSentimentResult: TypeAlias = FaithfulResult[SentimentLabel, SentimentPre
 class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.SENTIMENT
 
-    def _make_counterfactual_sentiment(self, sentiment: SentimentPredict|None) -> SentimentLabel|None:
+    def _make_counterfactual_sentiment(self, sentiment: SentimentLabel) -> SentimentLabel:
         match sentiment:
             case 'positive':
                 return 'negative'
             case 'negative':
                 return 'positive'
-            case _:
-                return None
 
     async def _query_sentiment(
         self, paragraph: str, generate_text: RequestCapture
@@ -212,7 +210,7 @@ class SentimentCounterfactualTask(FaithfulTask[SentimentDataset, SentimentObserv
         sentiment = self._extract_sentiment(sentiment_source)
         correct = self._process_is_correct(observation, sentiment)
 
-        opposite_sentiment = self._make_counterfactual_sentiment(sentiment)
+        opposite_sentiment = self._make_counterfactual_sentiment(observation['label'])
         user_prompt = ''
         if self._is_enabled('e-implcit-target'):
             if self._is_enabled('e-persona-you'):

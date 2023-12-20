@@ -49,9 +49,9 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
     ) -> str:
         user_prompt = ''
         if self._is_enabled('c-persona-you'):
-            pass
+            user_prompt += f'Consideing the following paragraph, how would you answer the question: "{question}"'
         elif self._is_enabled('c-persona-human'):
-            pass
+            user_prompt += f'Consideing the following paragraph, how would a human answer the question: "{question}"'
         else:
             user_prompt += f'Consider the following paragraph, and answer the question: "{question}"'
 
@@ -75,7 +75,7 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
     def _extract_choice(self, choices: list[str], choice_source: str) -> str|None:
         # check for a matching letter
         # Example: b) The answer is b) washroom.
-        if m := re.search(r'(?:^| |\()([a-z])\)', choice_source, flags=re.IGNORECASE | re.MULTILINE):
+        if m := re.search(r'(?:^| |\(|Answer: )([a-z])(?:\)|$)', choice_source, flags=re.IGNORECASE | re.MULTILINE):
             answer_letter, = m.groups()
             answer_index = ord(answer_letter) - ord('a')
             if 0 <= answer_index < len(choices):
@@ -202,7 +202,7 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
         choice = self._extract_choice(observation['choices'], choice_source)
         correct = self._process_is_correct(observation, choice)
 
-        alternative_choice = self._make_alternative_choice(choices, choice)
+        alternative_choice = self._make_alternative_choice(choices, observation['label'])
         user_prompt = ''
         if self._is_enabled('e-persona-you'):
             user_prompt += f'Edit the following paragraph such you would answer the question "{question}" with "{alternative_choice}".'
@@ -272,7 +272,7 @@ class MultiChoiceRedactedTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObserv
             user_prompt += f' by replacing important words with {self._make_answer_choices(choices)}.'
         else:
             user_prompt += (
-                f'Redact the most important words for answering {question} given the following paragraph,'
+                f'Redact the most important words for answering "{question}" given the following paragraph,'
                 f' by replacing important words with {self._make_answer_choices(choices)},'
             )
             if self._is_enabled('e-persona-you'):
@@ -332,7 +332,7 @@ class MultiChoiceImportanceTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObse
         correct = self._process_is_correct(observation, choice)
 
         user_prompt = ''
-        user_prompt += f'List the most important words for answering {question} given the following paragraph,'
+        user_prompt += f'List the most important words for answering "{question}" given the following paragraph,'
         if self._is_enabled('e-persona-you'):
             user_prompt += ' such that without these words you can not answer the question.'
         elif self._is_enabled('e-persona-human'):
