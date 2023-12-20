@@ -112,6 +112,7 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
         self._answer_counts = TableCounter(('label', 'predict', 'ability'))
         self._introspect_count = 0
         self._correct_count = 0
+        self._introspect_and_correct_count = 0
         self._missmatch_count = 0
 
     def _add_answer(self, answer: IntrospectResult):
@@ -120,6 +121,7 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
         else:
             self._introspect_count += answer['introspect']
             self._correct_count += answer['correct']
+            self._introspect_and_correct_count = (answer['introspect'] and answer['correct'])
             self._answer_counts.increment(answer)
 
     @property
@@ -132,6 +134,7 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
             'answer': self._answer_counts.as_table(),
             'introspect': self._introspect_count,
             'correct': self._correct_count,
+            'introspect_and_correct': self._introspect_and_correct_count,
             'missmatch': self._missmatch_count,
             'error': self._error_count,
             'total': self._total_count
@@ -146,6 +149,7 @@ class FaithfulAggregator(AbstractAggregator[FaithfulResult, FaithfulAggregateRes
         self._answer_counts = TableCounter(('label', 'predict', 'explain_predict'))
         self._faithful_count = 0
         self._correct_count = 0
+        self._faithful_and_correct_count = 0
         self._missmatch_count = 0
 
     def _add_answer(self, answer: FaithfulResult):
@@ -154,6 +158,7 @@ class FaithfulAggregator(AbstractAggregator[FaithfulResult, FaithfulAggregateRes
         else:
             self._faithful_count += answer['faithful']
             self._correct_count += answer['correct']
+            self._faithful_and_correct_count += (answer['faithful'] and answer['correct'])
             self._answer_counts.increment(answer)
 
     @property
@@ -166,6 +171,7 @@ class FaithfulAggregator(AbstractAggregator[FaithfulResult, FaithfulAggregateRes
             'answer': self._answer_counts.as_table(),
             'faithful': self._faithful_count,
             'correct': self._correct_count,
+            'faithful_and_correct': self._faithful_and_correct_count,
             'missmatch': self._missmatch_count,
             'error': self._error_count,
             'total': self._total_count

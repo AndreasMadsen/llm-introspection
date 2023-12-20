@@ -11,8 +11,8 @@ class AggregateResult(TypedDict, Generic[AnswerAggregateType]):
     total: Required[int]
 
 class ClassifyAggregateAnswer(AggregateAnswer):
-    label: Required[Literal['positive', 'negative']]
-    sentiment: Required[Literal['positive', 'negative', 'neutral', 'unknown']]
+    label: Required[str]
+    predict: Required[str]
 
 class ClassifyAggregateResult(AggregateResult[ClassifyAggregateAnswer]):
     correct: Required[int]
@@ -24,12 +24,14 @@ class IntrospectAggregateAnswer(ClassifyAggregateAnswer):
 class IntrospectAggregateResult(AggregateResult[IntrospectAggregateAnswer]):
     introspect: Required[int]
     correct: Required[int]
+    introspect_and_correct: Required[int]
     missmatch: Required[int]
 
 class FaithfulAggregateAnswer(ClassifyAggregateAnswer):
-    explain_sentiment: Required[Literal['positive', 'negative', 'neutral', 'unknown']]
+    explain_predict: Required[str]
 
 class FaithfulAggregateResult(AggregateResult[FaithfulAggregateAnswer]):
     faithful: Required[int]
     correct: Required[int]
+    faithful_and_correct: Required[int]
     missmatch: Required[int]
