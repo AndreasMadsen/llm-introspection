@@ -53,7 +53,6 @@ class GenerationCache(AbstractDatabase):
         self._database = database
         self._deps = deps
         self._cache_dir = cache_dir
-
         super().__init__(_database_to_filepath(database, cache_dir), **kwargs)
 
     async def open(self) -> bool:
@@ -75,6 +74,8 @@ class GenerationCache(AbstractDatabase):
             async with GenerationCache(dep, self._cache_dir) as source_db:
                 async for prompt, answer in source_db:
                     await self.put(prompt, answer)
+
+        await self.commit()
 
         return is_new
 

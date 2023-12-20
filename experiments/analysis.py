@@ -27,7 +27,7 @@ parser.add_argument('--persistent-dir',
                     help='Directory where all persistent data will be stored')
 parser.add_argument('--endpoint',
                     action='store',
-                    default='http://127.0.0.1:20001',
+                    default='http://127.0.0.1:20002',
                     type=str,
                     help='The TGI endpoint for this model')
 parser.add_argument('--client',
@@ -97,11 +97,6 @@ parser.add_argument('--debug',
                     default=False,
                     type=bool,
                     help='Enable debug mode')
-parser.add_argument('--clean-database',
-                    action=argparse.BooleanOptionalAction,
-                    default=True,
-                    type=bool,
-                    help='Remove result database')
 parser.add_argument('--clean-cache',
                     action=argparse.BooleanOptionalAction,
                     default=False,
@@ -145,7 +140,6 @@ async def main():
     print(f' - Seed: {args.seed}')
     print('')
     print(f' - Debug: {args.debug}')
-    print(f' - Clean database: {args.clean_database}')
     print(f' - Clean cache: {args.clean_cache}')
     print('')
 
@@ -157,20 +151,18 @@ async def main():
     database = result_databases[args.task](
         (args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.sqlite')
     )
-    cache = GenerationCache(experiment_id, cache_dir=args.persistent_dir / 'database', deps=[
-        generate_experiment_id('analysis',
-                               model=args.model_name, system_message=args.system_message,
-                               dataset=args.dataset, split=args.split,
-                               task='classify', task_config=classify_task_config,
-                               seed=args.seed)
-
-        for classify_task_config in (
-            [] if args.task == TaskCategories.CLASSIFY
-            else list(set(args.task_config) & set([
-                'm-removed', 'c-no-redacted', 'c-persona-human', 'c-persona-you'
-            ]))
+    cache_deps = []
+    if args.task != TaskCategories.CLASSIFY:
+        cache_deps.append(
+            generate_experiment_id('analysis',
+                                model=args.model_name, system_message=args.system_message,
+                                dataset=args.dataset, split=args.split,
+                                task='classify', task_config=list(set(args.task_config) & set([
+                                    'm-removed', 'c-no-redacted', 'c-persona-human', 'c-persona-you'
+                                ])),
+                                seed=args.seed)
         )
-    ])
+    cache = GenerationCache(experiment_id, cache_dir=args.persistent_dir / 'database', deps=cache_deps)
 
     # setup task
     client = clients[args.client](args.endpoint, cache)
@@ -180,7 +172,7 @@ async def main():
     durations['setup'] = timer() - setup_time_start
 
     # cleanup old database
-    if args.clean_database and not args.dry:
+    if not args.dry:
         database.remove()
     if args.clean_cache and not args.dry:
         cache.remove()
