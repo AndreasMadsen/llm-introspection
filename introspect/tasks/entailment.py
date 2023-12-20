@@ -18,9 +18,6 @@ from ._abstract_tasks import \
 from ._request_capture import RequestCapture
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 
-def _startwith(content: str, options: list[str]) -> bool:
-    return any(content.startswith(pattern) for pattern in options)
-
 EntailmentPredict: TypeAlias = Literal['yes', 'no', 'unknown']
 EntailmentLabel: TypeAlias = Literal['yes', 'no']
 PartialClassifyEntailmentResult: TypeAlias = PartialClassifyResult[EntailmentPredict]

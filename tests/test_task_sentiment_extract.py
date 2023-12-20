@@ -11,7 +11,6 @@ from introspect.tasks import SentimentClassifyTask
 @pytest.fixture
 def task() ->SentimentClassifyTask:
     return SentimentClassifyTask(
-        IMDBDataset(persistent_dir=pathlib.Path('.')),
         Llama2Model(OfflineClient())
     )
 

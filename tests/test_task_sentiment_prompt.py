@@ -145,9 +145,9 @@ task_requests = [
             ' Do not explain the answer.'
             '\n'
             '\n'
-            'Paragraph: [PARAGRAPH] [/INST]': 'Positive',
+            'Paragraph: [PARAGRAPH] [/INST]': 'Negative',
 
-            '<s>[INST] Edit the following paragraph such that the sentiment is "negative".'
+            '<s>[INST] Edit the following paragraph such that the sentiment is "positive".'
             ' Make as few edits as possible.'
             ' Do not explain the answer.'
             '\n'
@@ -199,7 +199,6 @@ task_requests = [
 async def test_task_sentiment_config(sentiment_obs: SentimentObservation, info: RequestExpectations):
     client = CreateTestClient(response = info.expected_requests)
     task = info.task_type(
-        IMDBDataset(persistent_dir=pathlib.Path('.')),
         Llama2Model(client, system_message=SystemMessage.NONE),
         config=info.config
     )
