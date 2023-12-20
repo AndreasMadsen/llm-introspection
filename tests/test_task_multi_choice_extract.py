@@ -11,7 +11,6 @@ from introspect.tasks import MultiChoiceClassifyTask
 @pytest.fixture
 def task() ->MultiChoiceClassifyTask:
     return MultiChoiceClassifyTask(
-        MCTestDataset(persistent_dir=pathlib.Path('.')),
         Llama2Model(OfflineClient())
     )
 

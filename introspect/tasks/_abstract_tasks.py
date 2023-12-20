@@ -24,11 +24,10 @@ XstrType = TypeVar('XstrType', bound=str)
 YstrType = TypeVar('YstrType', bound=str)
 
 class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, TaskResultType], metaclass=ABCMeta):
-    _dataset: DatasetType
     dataset_category: DatasetCategories
     task_category: TaskCategories
 
-    def __init__(self, dataset: DatasetType, model: AbstractModel, config: Sequence[str] = []) -> None:
+    def __init__(self, model: AbstractModel, config: Sequence[str] = []) -> None:
         """Enables running a specific task.
 
         Each task is categorized by it's generalized dataset (e.g. SentimentDataset) and
@@ -41,13 +40,10 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
         parallel queries.
 
         Args:
-            dataset (AbstractDataset): A dataset instance,
-                must be a subclass of the selected dataset category.
             model (AbstractModel): The model which is used to query prompts.
             config (Sequence[str], optional): Additional configurations. These options will
                 make minor modifications to the prompts. Defaults to [].
         """
-        self._dataset = dataset
         self._model = model
         self._config = set(config)
 
