@@ -7,18 +7,11 @@ import pathlib
 from tqdm import tqdm
 import pandas as pd
 import plotnine as p9
-import numpy as np
 
 from introspect.dataset import datasets
 from introspect.types import DatasetSplits, SystemMessage, TaskCategories
 from introspect.util import generate_experiment_id
 from introspect.plot import annotation, tag
-
-def select_target_metric(df):
-    idx, cols = pd.factorize('results.' + df.loc[:, 'target_metric'])
-    return df.assign(
-        metric = df.reindex(cols, axis=1).to_numpy()[np.arange(len(df)), idx]
-    )
 
 parser = argparse.ArgumentParser(
     description = 'Plots the 0% masking test performance given different training masking ratios'
