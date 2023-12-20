@@ -13,15 +13,6 @@ class MCTestDataset(MultiChoiceDataset):
     _split_valid = 'validation'
     _split_test = 'test'
 
-    @cached_property
-    def _label_int2str(self) -> Mapping[int, Literal['negative', 'positive']]:
-        label_def = self.info.features['label'] # type: ignore
-
-        return {
-            label_def.names.index('negative'): 'negative',
-            label_def.names.index('positive'): 'positive'
-        }
-
     def _builder(self, cache_dir):
        return datasets.load_dataset_builder('sagnikrayc/mctest', cache_dir=str(cache_dir))
 

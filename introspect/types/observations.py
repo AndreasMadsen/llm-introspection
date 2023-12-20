@@ -14,3 +14,7 @@ class MultiChoiceObservation(Observation[str]):
     paragraph: Required[str]
     question: Required[str]
     choices: Required[list[str]]
+
+class EntailmentObservation(Observation[Literal['yes', 'no']]):
+    statement: Required[str]
+    paragraph: Required[str]

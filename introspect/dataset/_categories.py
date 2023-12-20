@@ -4,7 +4,7 @@ from typing import Literal
 import datasets
 
 from ._abstract_dataset import AbstractDataset
-from ..types import DatasetCategories, SentimentObservation, MultiChoiceObservation
+from ..types import DatasetCategories, SentimentObservation, MultiChoiceObservation, EntailmentObservation
 from ..types import SentimentObservation
 
 class SentimentDataset(AbstractDataset[SentimentObservation]):
@@ -23,6 +23,16 @@ class MultiChoiceDataset(AbstractDataset[MultiChoiceObservation]):
         "paragraph": datasets.Value("string"),
         "question": datasets.Value("string"),
         "choices": datasets.Sequence(datasets.Value("string")),
+        "label": datasets.Value("string"),
+        "idx": datasets.Value("int64"),
+    })
+
+class EntailmentDataset(AbstractDataset[EntailmentObservation]):
+    category = DatasetCategories.ENTAILMENT
+
+    _features = datasets.Features({
+        "statement": datasets.Value("string"),
+        "paragraph": datasets.Value("string"),
         "label": datasets.Value("string"),
         "idx": datasets.Value("int64"),
     })
