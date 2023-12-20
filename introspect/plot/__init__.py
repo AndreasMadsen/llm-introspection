@@ -1,4 +1,5 @@
 
-__all__ = ['annotation']
+__all__ = ['annotation', 'tag']
 
-from .annotation import annotation
+from . import annotation
+from . import tagger as tag
