@@ -24,42 +24,43 @@ class _AnnotationMapping(dict):
         return super.__ior__(self, other) # type: ignore
 
 
-class _AllAnnotations():
-    def __init__(self) -> None:
-        self.predicted_sentiment = _AnnotationMapping({
-            'negative': 'Negative',
-            'neutral': 'Neutral',
-            'positive': 'Positive',
-            'unknown': 'Unknown'
-        })
-        self.target_sentiment = _AnnotationMapping({
-            'negative': 'Negative',
-            'positive': 'Positive'
-        })
-        self.persona = _AnnotationMapping({
-            'human-persona': 'Human persona',
-            'you-persona': 'You persona',
-            'no-persona': 'No persona'
-        })
-        self.redact = _AnnotationMapping({
-            'no-redact': 'No redact desc.',
-            'redact': 'Has redact desc.'
-        })
-        self.counterfactual_target = _AnnotationMapping({
-            'explicit': 'Explicit target',
-            'implicit': 'Implicit target'
-        })
-        self.prompt_length = _AnnotationMapping({
-            'short': 'Short variation',
-            'long': 'Long variation'
-        })
-        self.ability = _AnnotationMapping({
-            'yes': 'Yes',
-            'no': 'No'
-        })
-        self.answerable_options = _AnnotationMapping({
-            'options': 'Choices given',
-            'no-options': 'No choices given'
-        })
-
-annotation = _AllAnnotations()
+predicted_sentiment = _AnnotationMapping({
+    'negative': 'Negative',
+    'neutral': 'Neutral',
+    'positive': 'Positive',
+    'unknown': 'Unknown'
+})
+target_sentiment = _AnnotationMapping({
+    'negative': 'Negative',
+    'positive': 'Positive'
+})
+persona = _AnnotationMapping({
+    'human': 'Human',
+    'you': 'You',
+    'objective': 'Objective'
+})
+redact = _AnnotationMapping({
+    'no-redact': 'None',
+    'redacted': '"redacted"',
+    'removed': '"removed"'
+})
+redact_token = _AnnotationMapping({
+    'redacted': '"redacted"',
+    'removed': '"removed"'
+})
+counterfactual_target = _AnnotationMapping({
+    'explicit': 'Explicit target',
+    'implicit': 'Implicit target'
+})
+prompt_length = _AnnotationMapping({
+    'short': 'Short variation',
+    'long': 'Long variation'
+})
+ability = _AnnotationMapping({
+    'yes': 'Yes',
+    'no': 'No'
+})
+answerable_options = _AnnotationMapping({
+    'options': 'Choices given',
+    'no-options': 'No choices given'
+})
