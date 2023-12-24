@@ -14,6 +14,10 @@ do
         do
             for task_config in '' 'c-persona-you i-persona-you' 'c-persona-human i-persona-human' 'i-options' 'i-options c-persona-you i-persona-you' 'i-options c-persona-human i-persona-human'
             do
+                if [[ $model_name != 'llama2-70b' && $task_config != '' ]]; then
+                    continue
+                fi
+
                 submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
                     experiments/analysis.py \
                     --task 'answerable' \
@@ -26,5 +30,4 @@ do
             done
         done
     done
-    break
 done
