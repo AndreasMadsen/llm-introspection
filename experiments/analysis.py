@@ -168,7 +168,7 @@ async def main():
     client = clients[args.client](args.endpoint, cache)
     dataset = datasets[args.dataset](persistent_dir=args.persistent_dir, seed=args.seed)
     model = models[args.model_type](client, system_message=args.system_message, debug=args.debug, config={'seed': args.seed})
-    task = tasks[dataset.category, args.task](dataset, model, config=args.task_config)
+    task = tasks[dataset.category, args.task](model, config=args.task_config)
     durations['setup'] = timer() - setup_time_start
 
     # cleanup old database
