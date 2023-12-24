@@ -203,4 +203,4 @@ async def test_task_sentiment_config(sentiment_obs: SentimentObservation, info: 
         config=info.config
     )
     await task(sentiment_obs)
-    assert client.log == list(info.expected_requests.keys())
+    assert list(client.prompt_record) == list(info.expected_requests.keys())

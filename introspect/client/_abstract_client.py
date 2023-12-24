@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import asyncio
 import time
-from typing import TypedDict, Generic, TypeVar
+from typing import TypedDict, Generic, TypeVar, Iterable
 
 from ..types import GenerateConfig, GenerateResponse, GenerateError, OfflineError
 from ..database import GenerationCache
@@ -12,8 +12,11 @@ class RetryRequest(Exception):
     pass
 
 class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
+    _record: list[tuple[str, GenerateResponse]]
+
     def __init__(self, base_url: str, cache: GenerationCache|None = None,
-                 connect_timeout_sec: int=60*60, max_reconnects: int=5) -> None:
+                 connect_timeout_sec: int=60*60, max_reconnects: int=5,
+                 record=False) -> None:
         """Create a client that can be used to run a generative inference
 
         Args:
@@ -21,6 +24,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
             cache (GenerationCache | None, optional): Cache where generation outputs are stored. Defaults to None.
             connect_timeout_sec (int, optional): How long to wait for the server to start. Defaults to 30*60.
             max_reconnects (int, optional): The number of times the connection can be lost. Default to 3.
+            record (bool, optional). Record inputs and outputs. Default False.
         """
         self._base_url = base_url
         self._connect_timeout_sec = connect_timeout_sec
@@ -28,6 +32,30 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         self._is_connected = False
         self._on_connection = None
         self._remaning_reconnects = max_reconnects
+
+        self._record_enabled = record
+        self._record = []
+
+    @property
+    def record(self) -> Iterable[tuple[str, GenerateResponse]]:
+        if not self._record_enabled:
+            raise ValueError('recording is not enabled')
+
+        return ((prompt, response) for prompt, response in self._record)
+
+    @property
+    def prompt_record(self) -> Iterable[str]:
+        if not self._record_enabled:
+            raise ValueError('recording is not enabled')
+
+        return (prompt for prompt, response in self._record)
+
+    @property
+    def response_record(self) -> Iterable[GenerateResponse]:
+        if not self._record_enabled:
+            raise ValueError('recording is not enabled')
+
+        return (response for prompt, response in self._record)
 
     async def _get_cache(self, prompt) -> None|GenerateResponse|GenerateError:
         if self._cache is None:
@@ -114,6 +142,12 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
             'repetition_penalty': config.get('repetition_penalty', 1)
         }
 
+        response = await self._read_cache_or_generate(prompt, config_with_defaults)
+        if self._record_enabled:
+            self._record.append((prompt, response))
+        return response
+
+    async def _read_cache_or_generate(self, prompt: str, config: GenerateConfig) -> GenerateResponse:
         # Return valid response from cache, if it exists
         cached_answer = await self._get_cache(prompt)
         if cached_answer is not None and not isinstance(cached_answer, GenerateError):
@@ -127,7 +161,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
 
         # compute response
         try:
-            computed_answer = await self._generate(prompt, config_with_defaults)
+            computed_answer = await self._generate(prompt, config)
         except GenerateError as error:
             computed_answer: GenerateResponse|GenerateError = error
         except RetryRequest as error:
