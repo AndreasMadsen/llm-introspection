@@ -1,8 +1,7 @@
 import pathlib
 from functools import cached_property
 from abc import ABCMeta, abstractmethod
-from typing import Any, TypeVar, Iterable, Generic, Mapping
-from collections.abc import Iterable
+from typing import Any, TypeVar, Sequence, Generic
 
 import datasets
 
@@ -58,7 +57,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         """
         self._builder_cache.download_and_prepare()
 
-    def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
+    def _process_dataset(self, dataset: datasets.Dataset) -> Sequence[ObservationType]:
         return dataset \
             .map(self._restructure, with_indices=True, features=self._features, remove_columns=dataset.column_names) \
             .shuffle(seed=self._seed) # type: ignore
@@ -75,7 +74,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
             case _:
                 raise ValueError(f'split {split} is not supported')
 
-    def split(self, split: DatasetSplits) -> Iterable[ObservationType]:
+    def split(self, split: DatasetSplits) -> Sequence[ObservationType]:
         """Get observations for a given split"""
         match split:
             case 'train':
@@ -87,7 +86,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
             case _:
                 raise ValueError(f'split {split} is not supported')
 
-    def train(self) -> Iterable[ObservationType]:
+    def train(self) -> Sequence[ObservationType]:
         """Get training dataset
         """
         return self._process_dataset(self._datasets[0])
@@ -98,7 +97,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         """
         return self._datasets[0].num_rows
 
-    def valid(self) -> Iterable[ObservationType]:
+    def valid(self) -> Sequence[ObservationType]:
         """Validation dataset
         """
         return self._process_dataset(self._datasets[1])
@@ -108,7 +107,7 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         """
         return self._datasets[1].num_rows
 
-    def test(self) -> Iterable[ObservationType]:
+    def test(self) -> Sequence[ObservationType]:
         """Test dataset
         """
         return self._process_dataset(self._datasets[2])
