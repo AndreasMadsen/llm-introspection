@@ -14,6 +14,10 @@ do
         do
             for task_config in '' 'c-persona-you e-persona-you' 'c-persona-human e-persona-human' 'e-implcit-target' 'e-implcit-target c-persona-you e-persona-you' 'e-implcit-target c-persona-human e-persona-human'
             do
+                if [[ $model_name != 'llama2-70b' && $task_config != '' ]]; then
+                    continue
+                fi
+
                 submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
                     experiments/analysis.py \
                     --task 'counterfactual' \
@@ -26,5 +30,4 @@ do
             done
         done
     done
-    break
 done
