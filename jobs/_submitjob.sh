@@ -64,6 +64,10 @@ function submitjob {
     if [ ! -f "${PROJECT_RESULT_DIR}/results/${experiment_id%%_*}/${experiment_id}.json" ]; then
         echo "scheduling ${experiment_id}" 1>&2;
 
+        if [ ! -z $RUN_DRY ]; then
+            return 0;
+        fi
+
         local jobid;
         if jobid=$(
             sbatch --time="$walltime:0" \
