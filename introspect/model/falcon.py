@@ -13,6 +13,7 @@ class FalconModel(AbstractModel):
         "stop": ["User:", "Falcon:"],
         "seed": 0
     }
+    _support_system_message = True
     _default_system_message = (
         "The following is a conversation between a highly knowledgeable and"
         " intelligent AI assistant, called Falcon, and a human user, called"

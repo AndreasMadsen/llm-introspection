@@ -13,6 +13,7 @@ class Llama2Model(AbstractModel):
         "stop": ["[INST]", "[/INST]", "<s>", "</s>"],
         "seed": 0
     }
+    _support_system_message = True
     _default_system_message = (
         "You are a helpful, respectful and honest assistant. Always answer as"
         " helpfully as possible, while being safe. Your answers should not"
