@@ -269,11 +269,11 @@ class MultiChoiceRedactedTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObserv
             else:
                 user_prompt += f'Redact the following paragraph such that the question "{question}" can no longer be answered,'
 
-            user_prompt += f' by replacing important words with {self._make_answer_choices(choices)}.'
+            user_prompt += f' by replacing important words with {self._mask_special_token}.'
         else:
             user_prompt += (
                 f'Redact the most important words for answering "{question}" given the following paragraph,'
-                f' by replacing important words with {self._make_answer_choices(choices)},'
+                f' by replacing important words with {self._mask_special_token},'
             )
             if self._is_enabled('e-persona-you'):
                 user_prompt += ' such that without these words you can not answer the question.'
