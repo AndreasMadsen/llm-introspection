@@ -113,7 +113,9 @@ async def main():
     os.makedirs(args.persistent_dir / 'results' / 'analysis', exist_ok=True)
 
     # setup database
-    database = result_databases[args.task](experiment_id, persistent_dir=args.persistent_dir)
+    database = result_databases[args.task](
+        (args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.sqlite')
+    )
     cache = GenerationCache(
         generate_experiment_id('cache', args.model_name, args.system_message, args.dataset, args.seed),
         persistent_dir=args.persistent_dir)
@@ -122,7 +124,7 @@ async def main():
     client = OfflineClient(cache=cache)
     dataset = datasets[args.dataset](persistent_dir=args.persistent_dir)
     model = models[args.model_type](client, system_message=args.system_message, config={'seed': args.seed})
-    task = tasks[dataset.category, args.task](dataset, model, config=args.task_config)
+    task = tasks[dataset.category, args.task](model, config=args.task_config)
 
     # connect to inference server
     print('Waiting for connection ...')
