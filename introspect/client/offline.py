@@ -11,13 +11,13 @@ class OfflineInfo(TypedDict):
 
 class OfflineClient(AbstractClient[OfflineInfo]):
     def __init__(self, base_url: str = 'http://127.0.0.0:0', cache: GenerationCache | None = None, connect_timeout_sec: int = 30 * 60) -> None:
-       super().__init__(base_url, cache, connect_timeout_sec)
+        super().__init__(base_url, cache, connect_timeout_sec)
 
     async def _try_connect(self) -> bool:
         return True
 
     async def _info(self) -> OfflineInfo:
-       return {}
+        return {}
 
     async def _generate(self, prompt, config) -> GenerateResponse:
         error = OfflineError('An LLM client is not used')
