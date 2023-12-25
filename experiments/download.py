@@ -11,11 +11,18 @@ parser.add_argument('--persistent-dir',
                     default=pathlib.Path(__file__).absolute().parent.parent,
                     type=pathlib.Path,
                     help='Directory where all persistent data will be stored')
+parser.add_argument('--datasets',
+                    nargs='+',
+                    action='store',
+                    default=list(datasets.keys()),
+                    type=str,
+                    choices=datasets.keys(),
+                    help='The datasets to download')
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    for name, Dataset in (pbar := tqdm(datasets.items())):
+    for name in (pbar := tqdm(args.datasets)):
         pbar.set_description(f'Downloading dataset {name}')
-        dataset = Dataset(persistent_dir=args.persistent_dir)
+        dataset = datasets[name](persistent_dir=args.persistent_dir)
         dataset.download()
