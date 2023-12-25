@@ -10,6 +10,8 @@ def default_model_type(args: Namespace) -> str:
             return 'Llama2'
         case 'tiiuae/falcon-40b-instruct' | 'tiiuae/falcon-7b-instruct':
             return 'Falcon'
+        case 'mistralai/Mistral-7B-Instruct-v0.2' | 'mistralai/Mistral-7B-Instruct-v0.1':
+            return 'Mistral'
         case _:
             raise ValueError(f'unknown model-id {args.model_id}')
 
@@ -28,5 +30,9 @@ def default_model_id(args: Namespace) -> str:
             return 'tiiuae/falcon-40b-instruct'
         case 'falcon-7b':
             return 'tiiuae/falcon-7b-instruct'
+        case 'mistral-v2-7b':
+            return 'mistralai/Mistral-7B-Instruct-v0.2'
+        case 'mistral-v1-7b':
+            return 'mistralai/Mistral-7B-Instruct-v0.1'
         case _:
             raise ValueError(f'unknown model-name {args.model_name}')
