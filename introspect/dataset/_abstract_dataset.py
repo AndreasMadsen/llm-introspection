@@ -31,8 +31,8 @@ class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
         self._persistent_dir = persistent_dir
         self._seed = seed
 
-        if not isinstance(self.info.features, dict):
-            raise ValueError('this dataset does not havce features defined')
+        if not isinstance(self.info.features, datasets.Features):
+            raise ValueError('this dataset does not have features defined')
 
     @abstractmethod
     def _builder(self, cache_dir: pathlib.Path) -> datasets.DatasetBuilder:
