@@ -14,10 +14,10 @@ function job_script {
         cluster=$CC_CLUSTER;
     fi
 
-    local jobscript="python_${cluster}_$1_job.sh"
+    local jobscript="python_${cluster}_$1_$2_job.sh"
 
     if [ ! -f "$jobscript" ]; then
-        echo "python_${cluster}_$1_job.sh not found" 1>&2
+        echo "$jobscript not found" 1>&2
         return 1
     fi
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 source "jobs/_submitjob.sh"
 
+declare -A gpus=( ["llama2-70b"]="x4" ["llama2-7b"]="x1" ["falcon-40b"]="x4" ["falcon-7b"]="x1" )
 declare -A time=(   ["llama2-70b IMDB"]="14:00"  ["llama2-7b IMDB"]="1:00"   ["falcon-40b IMDB"]="1:00"   ["falcon-7b IMDB"]="1:00"
                     ["llama2-70b RTE"]="6:00"    ["llama2-7b RTE"]="1:00"    ["falcon-40b RTE"]="1:00"    ["falcon-7b RTE"]="1:00"
                     ["llama2-70b bAbI-1"]="6:00" ["llama2-7b bAbI-1"]="1:00" ["falcon-40b bAbI-1"]="1:00" ["falcon-7b bAbI-1"]="1:00"
@@ -18,7 +19,7 @@ do
                     continue
                 fi
 
-                submitjob "${time[$model_name $dataset]}" $(job_script tgi) \
+                submitjob "${time[$model_name $dataset]}" $(job_script tgi ${gpus[$model_name]}) \
                     experiments/analysis.py \
                     --task 'redacted' \
                     --task-config $task_config \
