@@ -24,7 +24,9 @@ declare -A model_id=( ["llama2-70b"]="meta-llama/Llama-2-70b-chat-hf"
                       ["llama2-13b"]="meta-llama/Llama-2-13b-chat-hf"
                       ["llama2-7b"]="meta-llama/Llama-2-7b-chat-hf"
                       ["falcon-40b"]="tiiuae/falcon-40b-instruct"
-                      ["falcon-7b"]="tiiuae/falcon-7b-instruct" )
+                      ["falcon-7b"]="tiiuae/falcon-7b-instruct"
+                      ["mistral-v1-7b"]="mistralai/Mistral-7B-Instruct-v0.1"
+                      ["mistral-v2-7b"]="mistralai/Mistral-7B-Instruct-v0.2" )
 tgi_port=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4))
 model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_argument("--model-name"); print(p.parse_known_args()[0].model_name)' "${@:2}")
 
