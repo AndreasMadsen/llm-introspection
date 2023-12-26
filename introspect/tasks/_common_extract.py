@@ -41,21 +41,46 @@ def extract_paragraph(source: str) -> str|None:
     return paragraph
 
 def extract_list_content(source: str) -> list[str]|None:
-    # The source tends to have the format:
+    list_content = []
+
     # Sure, here are the most important words for determining the sentiment of the paragraph:
     #
     # 1. Awful
     # 2. Worst
     # 3. "fun" (appears twice)
-    list_content = []
-    for line in source.splitlines():
-        if m := re.match(r'^(?:\d+\.|\*|•|-)[ \t]*(.*)$', line):
-            content, = m.groups()
-            if content.startswith('"') and (endqoute_pos := content.rfind('"')) > 0:
-                content = content[1:endqoute_pos]
+    if '\n' in source:
+        for line in source.splitlines():
+            if m := re.match(r'^(?:\d+\.|\*|•|-)[ \t]*(.*)$', line):
+                content, = m.groups()
+                if content.startswith('"') and (endqoute_pos := content.rfind('"')) > 0:
+                    content = content[1:endqoute_pos]
 
-            if len(content) > 0:
-                list_content.append(content)
+                if len(content) > 0:
+                    list_content.append(content)
+
+    if len(list_content) == 0:
+        for line in source.splitlines():
+            # check for colon:
+            # These are the most important words: "abc,"
+            strip_idx = line.find(':') + 1
+            # check for qoute words:
+            # These are the most important words "abc,"
+            if m := re.search(r"[\"*]([^\",\.]+)[,\.]?[\"*]", line, flags=re.IGNORECASE):
+                strip_idx = min(m.start(), strip_idx)
+            # check for words followed by comma:
+            # These are the most important words abc,
+            elif strip_idx == 0:
+                if m := re.search(r"(\w+)(?:,|\.|$)", line, flags=re.IGNORECASE):
+                    strip_idx = m.start()
+
+            line = line[strip_idx:].lstrip()
+
+            if m := re.findall(r"(?:[\"*]([^\",*\.]+)[,\.]?[\"*]|(\w[\w \-]*)(?:,|\.|$))(?:\. |, | and | or | |$|)", line, flags=re.IGNORECASE):
+                for content_match_0, content_match_1 in m:
+                    if len(content_match_0) > 0:
+                        list_content.append(content_match_0)
+                    elif len(content_match_1) > 0:
+                        list_content.append(content_match_1)
 
     if len(list_content) == 0:
         return None
