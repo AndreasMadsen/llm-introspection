@@ -23,7 +23,7 @@ python experiments/download.py --persistent-dir $SCRATCH/introspect
 
 # Check models
 TGI_DIR=$SCRATCH/tgi
-for model_id in 'meta-llama/Llama-2-70b-chat-hf' 'meta-llama/Llama-2-13b-chat-hf' 'meta-llama/Llama-2-7b-chat-hf' 'tiiuae/falcon-40b-instruct' 'tiiuae/falcon-7b-instruct' 'mistralai/Mistral-7B-Instruct-v0.2'
+for model_id in 'meta-llama/Llama-2-70b-chat-hf' 'meta-llama/Llama-2-13b-chat-hf' 'meta-llama/Llama-2-7b-chat-hf' 'tiiuae/falcon-40b-instruct' 'tiiuae/falcon-7b-instruct' 'mistralai/Mistral-7B-Instruct-v0.2' 'mistralai/Mistral-7B-Instruct-v0.1'
 do
     if [ ! -d "${TGI_DIR}/tgi-repos/${model_id}" ] ; then
         echo "Model '${model_id}' is missing."
