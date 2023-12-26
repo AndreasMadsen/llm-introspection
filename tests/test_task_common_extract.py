@@ -124,3 +124,35 @@ def test_task_extract_list_content():
              '•\tFugly\n'
              '•\tAnnoying\n'
              '•\tAwful\n') == ['Fugly', 'Annoying', 'Awful']
+
+    #
+    # Mistral (these outputs are most common with mistral)
+    #
+    # one line qouted strings
+    assert c('The most important words for determining the sentiment of this paragraph are:'
+              ' "like," "loathe," "crushing bore," and "bad."') == ['like', 'loathe', 'crushing bore', 'bad']
+    assert c('The most important words for determining the sentiment of this paragraph are'
+            ' "like," "loathe," "crushing bore," and "bad."') == ['like', 'loathe', 'crushing bore', 'bad']
+    assert c('Determining the sentiment of the paragraph requires the presence of certain words such as'
+            ' "fabulous," "sure-fire hit," "good time," and "worth watching."') == ['fabulous', 'sure-fire hit', 'good time', 'worth watching']
+    assert c('"like," "loathe," "crushing bore," and "bad."') == ['like', 'loathe', 'crushing bore', 'bad']
+    assert c('"like", "loathe", "crushing bore", and "bad".') == ['like', 'loathe', 'crushing bore', 'bad']
+
+    # stange qoute
+    assert c('*very minor spoiler*, *actor who played Carlito*, *Luis Guzman*.') == ['very minor spoiler', 'actor who played Carlito', 'Luis Guzman']
+
+    # strange content
+    assert c('The most important words for determining the sentiment of the paragraph are'
+             ' "enjoyed," "great," "liked," "fun," and ":)".') == ['enjoyed', 'great', 'liked', 'fun', ':)']
+
+    # unqouted
+    assert c('like, loathe, "crushing bore," and bad.') == ['like', 'loathe', 'crushing bore', 'bad']
+    assert c('Mistake, acted, sang, Oscars.') == ['Mistake', 'acted', 'sang', 'Oscars']
+    assert c('Notable words: plot, events, director, dreams.') == ['plot', 'events', 'director', 'dreams']
+
+    # multiple lines
+    assert c('Positive: beautiful, drop-dead gorgeous, fun, good time\n'
+             'Negative: brain-rotting, rancid, annoying, waste of money') == [
+                'beautiful', 'drop-dead gorgeous', 'fun', 'good time',
+                'brain-rotting', 'rancid', 'annoying', 'waste of money'
+            ]
