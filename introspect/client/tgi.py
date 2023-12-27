@@ -117,8 +117,15 @@ class TGIClient(AbstractClient[TGIInfo]):
                     if response.status != 200:
                         raise parse_error(response.status, answer)
 
+                    generated_text = answer[0]['generated_text']
+                    # remote stop tokens
+                    for stop_token in config['stop']:
+                        if generated_text.endswith(stop_token):
+                            generated_text = generated_text.removesuffix(stop_token)
+                            break
+
                     return {
-                        'response': answer[0]['generated_text'],
+                        'response': generated_text,
                         'duration': float(response.headers['X-Inference-Time'])
                     }
 

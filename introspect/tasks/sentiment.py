@@ -1,8 +1,6 @@
 
-import re
 import json
-from functools import cache
-from typing import Literal, TypeAlias, Callable, Iterable
+from typing import Literal, TypeAlias
 
 from ..dataset import SentimentDataset
 from ..types import \
@@ -19,6 +17,7 @@ from ._abstract_tasks import \
 from ._request_capture import RequestCapture
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 from ._common_process import process_redact_words
+from ._common_match import match_contains, match_pair_match, match_startwith
 
 SentimentPredict: TypeAlias = Literal['positive', 'negative', 'neutral', 'unknown']
 SentimentLabel: TypeAlias = Literal['positive', 'negative']
@@ -28,28 +27,6 @@ PartialIntrospectSentimentResult: TypeAlias = PartialIntrospectResult[SentimentP
 IntrospectSentimentResult: TypeAlias = IntrospectResult[SentimentLabel, SentimentPredict]
 PartialFaithfulSentimentResult: TypeAlias = PartialFaithfulResult[SentimentPredict]
 FaithfulSentimentResult: TypeAlias = FaithfulResult[SentimentLabel, SentimentPredict]
-
-@cache
-def _startwith(prefixes: Iterable[str]) -> Callable[[str], bool]:
-    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
-
-    r = re.compile(prefix_re, flags=re.IGNORECASE)
-    return lambda content: r.match(content) is not None
-
-@cache
-def _contains(prefixes: Iterable[str]) -> Callable[[str], bool]:
-    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
-
-    r = re.compile(r'\b' + prefix_re + r'(\b|\W)', flags=re.IGNORECASE)
-    return lambda content: r.search(content) is not None
-
-@cache
-def _pair_match(prefixes: Iterable[str], postfixes: Iterable[str]) -> Callable[[str], bool]:
-    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
-    postfix_re = '(?:' + '|'.join(re.escape(postfix) for postfix in postfixes) + ')'
-
-    r = re.compile(r'\b' + prefix_re + ' ' + postfix_re + r'(\b|\W)', flags=re.IGNORECASE)
-    return lambda content: r.search(content) is not None
 
 class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.SENTIMENT
@@ -133,18 +110,18 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
             'is'
         )
 
-        if _startwith(('positive', 'sentiment: positive'))(source) \
-        or _pair_match(pair_match_prefixes, ('positive', '"positive"'))(source):
+        if match_startwith(('positive', 'sentiment: positive'))(source) \
+        or match_pair_match(pair_match_prefixes, ('positive', '"positive"'))(source):
             sentiment = 'positive'
-        elif _startwith(('negative', 'sentiment: negative'))(source) \
-        or _pair_match(pair_match_prefixes, ('negative', '"negative"'))(source):
+        elif match_startwith(('negative', 'sentiment: negative'))(source) \
+        or match_pair_match(pair_match_prefixes, ('negative', '"negative"'))(source):
             sentiment = 'negative'
-        elif _startwith(('mixed', 'neutral'))(source) \
-        or _pair_match(pair_match_prefixes, ('neutral', '"neutral"', 'mixed', '"mixed"'))(source):
+        elif match_startwith(('mixed', 'neutral'))(source) \
+        or match_pair_match(pair_match_prefixes, ('neutral', '"neutral"', 'mixed', '"mixed"'))(source):
             sentiment = 'neutral'
-        elif _startwith(('unknown', 'i am sorry', 'sorry'))(source) \
-        or _pair_match(pair_match_prefixes, ('unknown', '"unknown"'))(source) \
-        or _contains((
+        elif match_startwith(('unknown', 'i am sorry', 'sorry'))(source) \
+        or match_pair_match(pair_match_prefixes, ('unknown', '"unknown"'))(source) \
+        or match_contains((
             'both positive and negative',
             'difficult to determine',
             'no explicit sentiments',

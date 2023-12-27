@@ -18,6 +18,7 @@ from ..types import \
     PartialFaithfulResult, FaithfulResult
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 from ._common_process import process_redact_words
+from ._common_match import match_contains, match_pair_match
 
 PartialClassifyMultiChoiceResult: TypeAlias = PartialClassifyResult[str]
 ClassifyMultiChoiceResult: TypeAlias = ClassifyResult[str, str]
@@ -76,9 +77,9 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
     def _extract_choice(self, choices: list[str], choice_source: str) -> str|None:
         # check for a matching letter
         # Example: b) The answer is b) washroom.
-        if m := re.search(r'(?:^| |\(|Answer: )([a-z])(?:\)|$)', choice_source, flags=re.IGNORECASE | re.MULTILINE):
+        if m := re.search(r'(?:^| |\(|")([a-z])(?:\.|,|:|\)|"|$)', choice_source, flags=re.IGNORECASE | re.MULTILINE):
             answer_letter, = m.groups()
-            answer_index = ord(answer_letter) - ord('a')
+            answer_index = ord(answer_letter.lower()) - ord('a')
             if 0 <= answer_index < len(choices):
                 return choices[answer_index]
             if answer_index == len(choices):
@@ -86,13 +87,23 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
 
         # fallback to content matching
         choice_source = choice_source.lower()
-
-        if 'unknown' in choice_source:
-            return 'unknown'
-
+        matched_choices = []
         for possible_choice in choices:
-            if possible_choice.lower() in choice_source:
-                return possible_choice
+            idx = choice_source.find(possible_choice.lower())
+            if idx >= 0:
+                matched_choices.append((idx, possible_choice))
+        matched_choices = list(map(lambda item: item[1], sorted(matched_choices)))
+
+        if len(matched_choices) > 0:
+            return matched_choices[0]
+
+        if match_contains((
+            'unknown',
+            'cannot provide',
+            'cannot determine',
+            'insufficient context'
+        ))(choice_source):
+            return 'unknown'
 
         # No match found
         return None
