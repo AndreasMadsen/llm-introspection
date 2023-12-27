@@ -1,7 +1,7 @@
 
 import pathlib
 import argparse
-from introspect.util import generate_experiment_id
+from introspect.util import generate_experiment_id, default_model_id, default_model_type, default_system_message
 
 parser = argparse.ArgumentParser()
 parser.add_argument('scriptpath',
@@ -13,6 +13,16 @@ parser.add_argument('--model-name',
                     default=None,
                     type=str,
                     help='Model name')
+parser.add_argument('--model-type',
+                    action='store',
+                    default=None,
+                    type=str,
+                    help='Model type')
+parser.add_argument('--model-id',
+                    action='store',
+                    default=None,
+                    type=str,
+                    help='Model id')
 parser.add_argument('--system-message',
                     action='store',
                     default=None,
@@ -47,6 +57,9 @@ parser.add_argument('--seed',
 
 def main():
     args, _ = parser.parse_known_args()
+    args.model_id = default_model_id(args)
+    args.model_type = default_model_type(args)
+    args.system_message = default_system_message(args)
 
     experiment_id = generate_experiment_id(
         args.scriptpath.name.rstrip('.py'),

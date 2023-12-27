@@ -36,3 +36,17 @@ def default_model_id(args: Namespace) -> str:
             return 'mistralai/Mistral-7B-Instruct-v0.2'
         case _:
             raise ValueError(f'unknown model-name {args.model_name}')
+
+def default_system_message(args: Namespace) -> str:
+    if args.system_message is not None:
+        return args.system_message
+
+    match args.model_type:
+        case 'Llama2':
+            return 'none'
+        case 'Falcon':
+            return 'default'
+        case 'Mistral':
+            return 'none'
+        case _:
+            raise ValueError(f'unknown model-type {args.model_type}')
