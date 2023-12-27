@@ -18,6 +18,7 @@ from ._abstract_tasks import \
 from ._request_capture import RequestCapture
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 from ._common_process import process_redact_words
+from ._common_match import match_contains
 
 EntailmentPredict: TypeAlias = Literal['yes', 'no', 'unknown']
 EntailmentLabel: TypeAlias = Literal['yes', 'no']
@@ -102,7 +103,14 @@ class EntailmentTask(AbstractTask[EntailmentDataset, EntailmentObservation, Part
         # fallback to content matching
         source = source.lower()
 
-        if source.startswith('unknown'):
+        if match_contains((
+            'unknown',
+            'cannot provide',
+            'cannot determine',
+            'insufficient context',
+            'unable to determine',
+            'impossible for me to determine'
+        ))(source):
             return 'unknown'
         elif source.startswith('yes'):
             return 'yes'
