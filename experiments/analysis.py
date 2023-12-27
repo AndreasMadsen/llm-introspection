@@ -15,7 +15,7 @@ from introspect.client import clients
 from introspect.dataset import datasets
 from introspect.model import models
 from introspect.tasks import tasks
-from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type
+from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type, default_system_message
 from introspect.database import result_databases, GenerationCache
 from introspect.types import TaskCategories, DatasetSplits, SystemMessage, GenerateError
 
@@ -54,7 +54,7 @@ parser.add_argument('--model-id',
                     help='Model id')
 parser.add_argument('--system-message',
                     action='store',
-                    default=SystemMessage.DEFAULT,
+                    default=None,
                     type=SystemMessage,
                     choices=list(SystemMessage),
                     help='Use a system message')
@@ -116,6 +116,7 @@ async def main():
     args = parser.parse_args()
     args.model_id = default_model_id(args)
     args.model_type = default_model_type(args)
+    args.system_message = default_system_message(args)
     experiment_id = generate_experiment_id(
         'analysis',
         model=args.model_name, system_message=args.system_message,
