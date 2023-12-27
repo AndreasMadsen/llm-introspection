@@ -1,7 +1,8 @@
 
 import re
 import json
-from typing import Literal, TypeAlias
+from functools import cache
+from typing import Literal, TypeAlias, Callable, Iterable
 
 from ..dataset import SentimentDataset
 from ..types import \
@@ -17,9 +18,7 @@ from ._abstract_tasks import \
     TaskResultType, PartialTaskResultType
 from ._request_capture import RequestCapture
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
-
-def _startwith(content: str, options: list[str]) -> bool:
-    return any(content.startswith(pattern) for pattern in options)
+from ._common_process import process_redact_words
 
 SentimentPredict: TypeAlias = Literal['positive', 'negative', 'neutral', 'unknown']
 SentimentLabel: TypeAlias = Literal['positive', 'negative']
@@ -29,6 +28,28 @@ PartialIntrospectSentimentResult: TypeAlias = PartialIntrospectResult[SentimentP
 IntrospectSentimentResult: TypeAlias = IntrospectResult[SentimentLabel, SentimentPredict]
 PartialFaithfulSentimentResult: TypeAlias = PartialFaithfulResult[SentimentPredict]
 FaithfulSentimentResult: TypeAlias = FaithfulResult[SentimentLabel, SentimentPredict]
+
+@cache
+def _startwith(prefixes: Iterable[str]) -> Callable[[str], bool]:
+    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
+
+    r = re.compile(prefix_re, flags=re.IGNORECASE)
+    return lambda content: r.match(content) is not None
+
+@cache
+def _contains(prefixes: Iterable[str]) -> Callable[[str], bool]:
+    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
+
+    r = re.compile(r'\b' + prefix_re + r'(\b|\W)', flags=re.IGNORECASE)
+    return lambda content: r.search(content) is not None
+
+@cache
+def _pair_match(prefixes: Iterable[str], postfixes: Iterable[str]) -> Callable[[str], bool]:
+    prefix_re = '(?:' + '|'.join(re.escape(prefix) for prefix in prefixes) + ')'
+    postfix_re = '(?:' + '|'.join(re.escape(postfix) for postfix in postfixes) + ')'
+
+    r = re.compile(r'\b' + prefix_re + ' ' + postfix_re + r'(\b|\W)', flags=re.IGNORECASE)
+    return lambda content: r.search(content) is not None
 
 class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.SENTIMENT
@@ -88,46 +109,52 @@ class SentimentTask(AbstractTask[SentimentDataset, SentimentObservation, Partial
 
         return introspect
 
-    def _process_redact_words(self, observation: SentimentObservation, important_words: list[str]) -> str:
-        return re.sub(
-            r'\b(?:' + '|'.join(re.escape(word) for word in important_words) + r')\b',
-            self._mask_special_token,
-            observation['text'],
-            flags=re.IGNORECASE
-        )
-
     def _extract_sentiment(self, source: str) -> SentimentPredict|None:
         source = source.lower()
+        pair_match_prefixes = (
+            'could be',
+            'are multiple',
+            'to express',
+            'might be',
+            'are some',
+            'be some',
+            'it contains',
+            'paragraph contains',
+            'paragraph has',
+            'tool detects',
+            'be considered',
+            'classified as',
+            'there are',
+            'seems',
+            'seems to be',
+            'seems to be mostly',
+            'appears to be',
+            'is:',
+            'is'
+        )
 
-        if _startwith(source, [
-            'positive',
-            'sentiment: positive',
-            'the sentiment of the paragraph is: positive',
-            'the sentiment of the paragraph is positive',
-            'the sentiment of this review is positive'
-        ]):
+        if _startwith(('positive', 'sentiment: positive'))(source) \
+        or _pair_match(pair_match_prefixes, ('positive', '"positive"'))(source):
             sentiment = 'positive'
-        elif _startwith(source, [
-            'negative',
-            'sentiment: negative',
-            'the sentiment of the paragraph is: negative',
-            'the sentiment of the paragraph is negative',
-            'the sentiment of the review is negative'
-        ]):
+        elif _startwith(('negative', 'sentiment: negative'))(source) \
+        or _pair_match(pair_match_prefixes, ('negative', '"negative"'))(source):
             sentiment = 'negative'
-        elif _startwith(source, [
-            'mixed',
-            'the sentiment of the paragraph is "mixed"',
-            'the sentiment of the paragraph is mixed',
-            'neutral',
-            'the sentiment of the paragraph is "neutral"',
-            'the sentiment of the paragraph is neutral'
-        ]):
+        elif _startwith(('mixed', 'neutral'))(source) \
+        or _pair_match(pair_match_prefixes, ('neutral', '"neutral"', 'mixed', '"mixed"'))(source):
             sentiment = 'neutral'
-        elif _startwith(source, [
-            'unknown',
-            'the sentiment of the paragraph is unknown'
-        ]):
+        elif _startwith(('unknown', 'i am sorry', 'sorry'))(source) \
+        or _pair_match(pair_match_prefixes, ('unknown', '"unknown"'))(source) \
+        or _contains((
+            'both positive and negative',
+            'difficult to determine',
+            'no explicit sentiments',
+            'no clear sentiment',
+            'cannot provide',
+            'unable to determine',
+            'cannot determine',
+            'cannot be determined',
+            'cannot be accurately determined'
+        ))(source):
             sentiment = 'unknown'
         else:
             sentiment = None
@@ -368,7 +395,7 @@ class SentimentImportanceTask(FaithfulTask[SentimentDataset, SentimentObservatio
 
         redacted = None
         if important_words is not None:
-            redacted = self._process_redact_words(observation, important_words)
+            redacted = process_redact_words(observation['text'], important_words, self._mask_special_token)
 
         redacted_sentiment_source, redacted_sentiment = None, None
         if redacted is not None:

@@ -17,6 +17,7 @@ from ._abstract_tasks import \
     TaskResultType, PartialTaskResultType
 from ._request_capture import RequestCapture
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
+from ._common_process import process_redact_words
 
 EntailmentPredict: TypeAlias = Literal['yes', 'no', 'unknown']
 EntailmentLabel: TypeAlias = Literal['yes', 'no']
@@ -84,14 +85,6 @@ class EntailmentTask(AbstractTask[EntailmentDataset, EntailmentObservation, Part
                 introspect = None
 
         return introspect
-
-    def _process_redact_words(self, observation: EntailmentObservation, important_words: list[str]) -> str:
-        return re.sub(
-            r'\b(?:' + '|'.join(re.escape(word) for word in important_words) + r')\b',
-            self._mask_special_token,
-            observation['paragraph'],
-            flags=re.IGNORECASE
-        )
 
     def _extract_entailment(self, source: str) -> Literal['yes', 'no', 'unknown']|None:
         # check for a matching letter
@@ -359,7 +352,7 @@ class EntailmentImportanceTask(FaithfulTask[EntailmentDataset, EntailmentObserva
 
         redacted = None
         if important_words is not None:
-            redacted = self._process_redact_words(observation, important_words)
+            redacted = process_redact_words(observation['paragraph'], important_words, self._mask_special_token)
 
         redacted_entailment_source, redacted_entailment = None, None
         if redacted is not None:
