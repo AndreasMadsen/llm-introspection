@@ -1,24 +1,9 @@
 
-import pathlib
+from introspect.tasks._common_process import process_redact_words
 
-import pytest
 
-from introspect.model import Llama2Model
-from introspect.client import OfflineClient
-from introspect.dataset import IMDBDataset
-from introspect.tasks import SentimentClassifyTask
-
-@pytest.fixture
-def task() -> SentimentClassifyTask:
-    return SentimentClassifyTask(
-        Llama2Model(OfflineClient())
-    )
-
-def test_task_sentiment_process_redact_words(task: SentimentClassifyTask):
-    r = lambda content, words: task._process_redact_words(
-        {'text': content, 'label': 'negative', 'idx': 0},
-        words
-    )
+def test_task_sentiment_process_redact_words():
+    r = lambda content, words: process_redact_words(content, words, '[REDACTED]')
 
     p = ('I opted to see the film at the recent Dubai Film Festival because'
          ' it had been selected to the Cannes film festival\'s prestigious'
@@ -52,11 +37,8 @@ def test_task_sentiment_process_redact_words(task: SentimentClassifyTask):
          ' for production values.')
     assert r(p, w) == e
 
-def test_task_sentiment_process_redact_words_synthetic(task: SentimentClassifyTask):
-    r = lambda content, words: task._process_redact_words(
-        {'text': content, 'label': 'negative', 'idx': 0},
-        words
-    )
+def test_task_sentiment_process_redact_words_synthetic():
+    r = lambda content, words: process_redact_words(content, words, '[REDACTED]')
 
     p = ('First word, isn\'t always the "first" word')
     # check first word and qouted context

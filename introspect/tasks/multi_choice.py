@@ -17,6 +17,7 @@ from ..types import \
     PartialIntrospectResult, IntrospectResult, \
     PartialFaithfulResult, FaithfulResult
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
+from ._common_process import process_redact_words
 
 PartialClassifyMultiChoiceResult: TypeAlias = PartialClassifyResult[str]
 ClassifyMultiChoiceResult: TypeAlias = ClassifyResult[str, str]
@@ -111,14 +112,6 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
                 introspect = None
 
         return introspect
-
-    def _process_redact_words(self, observation: MultiChoiceObservation, important_words: list[str]) -> str:
-        return re.sub(
-            r'\b(?:' + '|'.join(re.escape(word) for word in important_words) + r')\b',
-            self._mask_special_token,
-            observation['paragraph'],
-            flags=re.IGNORECASE
-        )
 
 class MultiChoiceClassifyTask(ClassifyTask[MultiChoiceDataset, MultiChoiceObservation],
                               MultiChoiceTask[PartialClassifyMultiChoiceResult, ClassifyMultiChoiceResult]):
@@ -354,7 +347,7 @@ class MultiChoiceImportanceTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObse
 
         redacted = None
         if important_words is not None:
-            redacted = self._process_redact_words(observation, important_words)
+            redacted = process_redact_words(observation['paragraph'], important_words, self._mask_special_token)
 
         redacted_choice_source, redacted_choice = None, None
         if redacted is not None:
