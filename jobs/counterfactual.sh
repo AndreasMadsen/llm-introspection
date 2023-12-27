@@ -11,24 +11,20 @@ for model_name in 'llama2-70b' 'llama2-7b' 'falcon-40b' 'falcon-7b' 'mistral-v1-
 do
     for dataset in 'IMDB' 'RTE' 'bAbI-1' 'MCTest'
     do
-        for system_message in 'none'
+        for task_config in '' 'c-persona-you e-persona-you' 'c-persona-human e-persona-human' 'e-implcit-target' 'e-implcit-target c-persona-you e-persona-you' 'e-implcit-target c-persona-human e-persona-human'
         do
-            for task_config in '' 'c-persona-you e-persona-you' 'c-persona-human e-persona-human' 'e-implcit-target' 'e-implcit-target c-persona-you e-persona-you' 'e-implcit-target c-persona-human e-persona-human'
-            do
-                if [[ $model_name != 'llama2-70b' && $task_config != '' ]]; then
-                    continue
-                fi
+            if [[ $model_name != 'llama2-70b' && $task_config != '' ]]; then
+                continue
+            fi
 
-                submitjob "${time[$model_name $dataset]}" $(job_script tgi ${gpus[$model_name]}) \
-                    experiments/analysis.py \
-                    --task 'counterfactual' \
-                    --task-config $task_config \
-                    --model-name "${model_name}" \
-                    --system-message "${system_message}" \
-                    --dataset "${dataset}" \
-                    --split 'train' \
-                    --seed 0
-            done
+            submitjob "${time[$model_name $dataset]}" $(job_script tgi ${gpus[$model_name]}) \
+                experiments/analysis.py \
+                --task 'counterfactual' \
+                --task-config $task_config \
+                --model-name "${model_name}" \
+                --dataset "${dataset}" \
+                --split 'train' \
+                --seed 0
         done
     done
 done
