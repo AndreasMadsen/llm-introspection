@@ -30,12 +30,12 @@ download-database-mila:
 		-e ssh mila:~/scratch/introspect/database/ ./database
 
 download-results-narval:
-	rsync --info=progress2 -urltv --delete \
+	rsync --info=progress2 -urltv --delete --compress \
 		--filter=':- .gitignore' --exclude='.git/' \
 		-e ssh cc-narval:~/scratch/introspect/results/ ./results
 
 download-database-narval:
-	rsync --info=progress2 -urltv --delete \
+	rsync --info=progress2 -urltv --delete --compress \
 		--filter=':- .gitignore' --exclude='.git/' \
 		-e ssh cc-narval:~/scratch/introspect/database/ ./database
 
