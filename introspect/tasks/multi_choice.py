@@ -18,7 +18,7 @@ from ..types import \
     PartialFaithfulResult, FaithfulResult
 from ._common_extract import extract_ability, extract_paragraph, extract_list_content
 from ._common_process import process_redact_words
-from ._common_match import match_contains, match_pair_match
+from ._common_match import match_contains
 
 PartialClassifyMultiChoiceResult: TypeAlias = PartialClassifyResult[str]
 ClassifyMultiChoiceResult: TypeAlias = ClassifyResult[str, str]
@@ -48,7 +48,7 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
 
     async def _query_choice(
         self, question: str, choices: list[str], paragraph: str, generate_text: RequestCapture
-    ) -> str:
+    ) -> tuple[str, str]:
         user_prompt = ''
         if self._is_enabled('c-persona-you'):
             user_prompt += f'Consideing the following paragraph, how would you answer the question: "{question}"'
@@ -67,12 +67,12 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
             f'Paragraph: {paragraph}'
         )
 
-        return await generate_text([
+        return (user_prompt, await generate_text([
             {
                 'user': user_prompt,
                 'assistant': None
             }
-        ])
+        ]))
 
     def _extract_choice(self, choices: list[str], choice_source: str) -> str|None:
         # check for a matching letter
@@ -133,13 +133,14 @@ class MultiChoiceClassifyTask(ClassifyTask[MultiChoiceDataset, MultiChoiceObserv
         choices = observation['choices']
         paragraph = observation['paragraph']
 
-        choice_source = await self._query_choice(question, choices, paragraph, generate_text)
-        choice = self._extract_choice(observation['choices'], choice_source)
+        choice_prompt, choice_answer = await self._query_choice(question, choices, paragraph, generate_text)
+        choice = self._extract_choice(observation['choices'], choice_answer)
         correct = self._process_is_correct(observation, choice)
 
         return {
-            'paragraph': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
-            'predict_source': choice_source,
+            'debug': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
+            'predict_prompt': choice_prompt,
+            'predict_answer': choice_answer,
             'predict': choice,
             'correct': correct
         }
@@ -153,42 +154,44 @@ class MultiChoiceAnswerableTask(IntrospectTask[MultiChoiceDataset, MultiChoiceOb
         choices = observation['choices']
         paragraph = observation['paragraph']
 
-        choice_source = await self._query_choice(question, choices, paragraph, generate_text)
-        choice = self._extract_choice(observation['choices'], choice_source)
+        choice_prompt, choice_answer = await self._query_choice(question, choices, paragraph, generate_text)
+        choice = self._extract_choice(observation['choices'], choice_answer)
         correct = self._process_is_correct(observation, choice)
 
-        user_prompt = ''
+        ability_prompt = ''
         if self._is_enabled('i-persona-you'):
-            user_prompt += f'Are you able to answer the question "{question}" based on the following paragraph?'
+            ability_prompt += f'Are you able to answer the question "{question}" based on the following paragraph?'
         elif self._is_enabled('i-persona-human'):
-            user_prompt += f'Is a human able to answer the question "{question}" based on the following paragraph?'
+            ability_prompt += f'Is a human able to answer the question "{question}" based on the following paragraph?'
         else:
-            user_prompt += f'Is it possible to answer the question "{question}" based on the following paragraph?'
+            ability_prompt += f'Is it possible to answer the question "{question}" based on the following paragraph?'
 
         if self._is_enabled('i-options'):
-            user_prompt += f' The possible answers to the question are {self._make_answer_choices(choices)}.'
+            ability_prompt += f' The possible answers to the question are {self._make_answer_choices(choices)}.'
 
-        user_prompt += (
+        ability_prompt += (
             f' Answer only "yes" or "no".'
             f' Do not explain the answer.\n\n'
             f'Paragraph: {paragraph}'
         )
 
-        ability_source = await generate_text([
+        ability_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': ability_prompt,
                 'assistant': None
             }
         ])
-        ability = extract_ability(ability_source)
+        ability = extract_ability(ability_answer)
         introspect = self._process_is_introspect(ability, choice)
 
         return {
-            'paragraph': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
-            'predict_source': choice_source,
+            'debug': f'Question: {question}.\nOptions: {choices},\nParagraph: {paragraph}',
+            'predict_prompt': choice_prompt,
+            'predict_answer': choice_answer,
             'predict': choice,
             'correct': correct,
-            'ability_source': ability_source,
+            'ability_prompt': ability_prompt,
+            'ability_answer': ability_answer,
             'ability': ability,
             'introspect': introspect,
         }
@@ -202,51 +205,54 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
         choices = observation['choices']
         paragraph = observation['paragraph']
 
-        choice_source = await self._query_choice(question, choices, paragraph, generate_text)
-        choice = self._extract_choice(observation['choices'], choice_source)
+        choice_prompt, choice_answer = await self._query_choice(question, choices, paragraph, generate_text)
+        choice = self._extract_choice(observation['choices'], choice_answer)
         correct = self._process_is_correct(observation, choice)
 
         alternative_choice = self._make_alternative_choice(choices, observation['label'])
-        user_prompt = ''
+        counterfactual_prompt = ''
         if self._is_enabled('e-persona-you'):
-            user_prompt += f'Edit the following paragraph such you would answer the question "{question}" with "{alternative_choice}".'
+            counterfactual_prompt += f'Edit the following paragraph such you would answer the question "{question}" with "{alternative_choice}".'
         elif self._is_enabled('e-persona-human'):
-            user_prompt += f'Edit the following paragraph such a human would answer the question "{question}" with "{alternative_choice}".'
+            counterfactual_prompt += f'Edit the following paragraph such a human would answer the question "{question}" with "{alternative_choice}".'
         else:
-            user_prompt += f'Edit the following paragraph such that the answer to the question "{question}" is "{alternative_choice}".'
+            counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" is "{alternative_choice}".'
 
-        user_prompt += (
+        counterfactual_prompt += (
             f' Make as few edits as possible.'
             f' Do not explain the answer.\n\n'
             f'Paragraph: {paragraph}'
         )
-        counterfactual_source, counterfactual = None, None
+        counterfactual_answer, counterfactual = None, None
         if alternative_choice is not None:
-            counterfactual_source = await generate_text([
+            counterfactual_answer = await generate_text([
                 {
-                    'user': user_prompt,
+                    'user': counterfactual_prompt,
                     'assistant': None
                 }
             ])
-            counterfactual = extract_paragraph(counterfactual_source)
+            counterfactual = extract_paragraph(counterfactual_answer)
 
-        counterfactual_choice_source, counterfactual_choice = None, None
+        counterfactual_choice_prompt, counterfactual_choice_answer, counterfactual_choice = None, None, None
         if counterfactual is not None:
-            counterfactual_choice_source = await self._query_choice(question, choices, counterfactual, generate_text)
-            counterfactual_choice = self._extract_choice(choices, counterfactual_choice_source)
+            counterfactual_choice_prompt, counterfactual_choice_answer = await self._query_choice(question, choices, counterfactual, generate_text)
+            counterfactual_choice = self._extract_choice(choices, counterfactual_choice_answer)
 
         faithful: bool | None = None
         if counterfactual_choice is not None:
             faithful = counterfactual_choice == alternative_choice
 
         return {
-            'paragraph': f'Question: {question}.\nOptions: {choices}\nAlternative: {alternative_choice}\nParagraph: {paragraph}',
-            'predict_source': choice_source,
+            'debug': f'Question: {question}.\nOptions: {choices}\nAlternative: {alternative_choice}\nParagraph: {paragraph}',
+            'predict_prompt': choice_prompt,
+            'predict_answer': choice_answer,
             'predict': choice,
             'correct': correct,
-            'explain_source': counterfactual_source,
+            'explain_prompt': counterfactual_prompt,
+            'explain_answer': counterfactual_answer,
             'explain': counterfactual,
-            'explain_predict_source': counterfactual_choice_source,
+            'explain_predict_prompt': counterfactual_choice_prompt,
+            'explain_predict_answer': counterfactual_choice_answer,
             'explain_predict': counterfactual_choice,
             'faithful': faithful,
         }
@@ -260,64 +266,67 @@ class MultiChoiceRedactedTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObserv
         choices = observation['choices']
         paragraph = observation['paragraph']
 
-        choice_source = await self._query_choice(question, choices, paragraph, generate_text)
-        choice = self._extract_choice(observation['choices'], choice_source)
+        choice_prompt, choice_answer = await self._query_choice(question, choices, paragraph, generate_text)
+        choice = self._extract_choice(observation['choices'], choice_answer)
         correct = self._process_is_correct(observation, choice)
 
-        user_prompt = ''
+        redacted_prompt = ''
         if self._is_enabled('e-short'):
             if self._is_enabled('e-persona-you'):
-                user_prompt += f'Redact the following paragraph such that you can no longer answer the question "{question}",'
+                redacted_prompt += f'Redact the following paragraph such that you can no longer answer the question "{question}",'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += f'Redact the following paragraph such that a human can no longer answer the question "{question}",'
+                redacted_prompt += f'Redact the following paragraph such that a human can no longer answer the question "{question}",'
             else:
-                user_prompt += f'Redact the following paragraph such that the question "{question}" can no longer be answered,'
+                redacted_prompt += f'Redact the following paragraph such that the question "{question}" can no longer be answered,'
 
-            user_prompt += f' by replacing important words with {self._mask_special_token}.'
+            redacted_prompt += f' by replacing important words with {self._mask_special_token}.'
         else:
-            user_prompt += (
+            redacted_prompt += (
                 f'Redact the most important words for answering "{question}" given the following paragraph,'
                 f' by replacing important words with {self._mask_special_token},'
             )
             if self._is_enabled('e-persona-you'):
-                user_prompt += ' such that without these words you can not answer the question.'
+                redacted_prompt += ' such that without these words you can not answer the question.'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += ' such that without these words a human can not answer the question.'
+                redacted_prompt += ' such that without these words a human can not answer the question.'
             else:
-                user_prompt += ' such that without these words the question can not be answered.'
+                redacted_prompt += ' such that without these words the question can not be answered.'
 
-        user_prompt += (
+        redacted_prompt += (
             f' Do not explain the answer.\n\n' +
             f'Paragraph: {paragraph}'
         )
 
         # The redacted_source tends to have the format:
         # Paragraph: The movie was [Redacted] ...
-        redacted_source = await generate_text([
+        redacted_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': redacted_prompt,
                 'assistant': None
             }
         ])
-        redacted = extract_paragraph(redacted_source)
+        redacted = extract_paragraph(redacted_answer)
 
-        redacted_choice_source, redacted_choice = None, None
+        redacted_choice_prompt, redacted_choice_answer, redacted_choice = None, None, None
         if redacted is not None:
-            redacted_choice_source = await self._query_choice(question, choices, redacted, generate_text)
-            redacted_choice = self._extract_choice(choices, redacted_choice_source)
+            redacted_choice_prompt, redacted_choice_answer = await self._query_choice(question, choices, redacted, generate_text)
+            redacted_choice = self._extract_choice(choices, redacted_choice_answer)
 
         faithful: bool | None = None
         if redacted_choice is not None:
             faithful = redacted_choice == 'unknown'
 
         return {
-            'paragraph': f'Question: {question}.\nParagraph: {paragraph}',
-            'predict_source': choice_source,
+            'debug': f'Question: {question}.\nParagraph: {paragraph}',
+            'predict_prompt': choice_prompt,
+            'predict_answer': choice_answer,
             'predict': choice,
             'correct': correct,
-            'explain_source': redacted_source,
+            'explain_prompt': redacted_prompt,
+            'explain_answer': redacted_answer,
             'explain': redacted,
-            'explain_predict_source': redacted_choice_source,
+            'explain_predict_prompt': redacted_choice_prompt,
+            'explain_predict_answer': redacted_choice_answer,
             'explain_predict': redacted_choice,
             'faithful': faithful,
         }
@@ -331,39 +340,39 @@ class MultiChoiceImportanceTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObse
         choices = observation['choices']
         paragraph = observation['paragraph']
 
-        choice_source = await self._query_choice(question, choices, paragraph, generate_text)
-        choice = self._extract_choice(observation['choices'], choice_source)
+        choice_prompt, choice_answer = await self._query_choice(question, choices, paragraph, generate_text)
+        choice = self._extract_choice(observation['choices'], choice_answer)
         correct = self._process_is_correct(observation, choice)
 
-        user_prompt = ''
-        user_prompt += f'List the most important words for answering "{question}" given the following paragraph,'
+        importance_prompt = ''
+        importance_prompt += f'List the most important words for answering "{question}" given the following paragraph,'
         if self._is_enabled('e-persona-you'):
-            user_prompt += ' such that without these words you can not answer the question.'
+            importance_prompt += ' such that without these words you can not answer the question.'
         elif self._is_enabled('e-persona-human'):
-            user_prompt += ' such that without these words a human can not answer the question.'
+            importance_prompt += ' such that without these words a human can not answer the question.'
         else:
-            user_prompt += ' such that without these words the question can not be answered.'
-        user_prompt += (
+            importance_prompt += ' such that without these words the question can not be answered.'
+        importance_prompt += (
             f' Do not explain the answer.\n\n' +
             f'Paragraph: {paragraph}'
         )
 
-        importance_source = await generate_text([
+        importance_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': importance_prompt,
                 'assistant': None
             }
         ])
-        important_words = extract_list_content(importance_source)
+        important_words = extract_list_content(importance_answer)
 
         redacted = None
         if important_words is not None:
             redacted = process_redact_words(observation['paragraph'], important_words, self._mask_special_token)
 
-        redacted_choice_source, redacted_choice = None, None
+        redacted_choice_prompt, redacted_choice_answer, redacted_choice = None, None, None
         if redacted is not None:
-            redacted_choice_source = await self._query_choice(question, choices, redacted, generate_text)
-            redacted_choice = self._extract_choice(choices, redacted_choice_source)
+            redacted_choice_prompt, redacted_choice_answer = await self._query_choice(question, choices, redacted, generate_text)
+            redacted_choice = self._extract_choice(choices, redacted_choice_answer)
 
         faithful: bool | None = None
         if redacted_choice is not None:
@@ -375,13 +384,16 @@ class MultiChoiceImportanceTask(FaithfulTask[MultiChoiceDataset, MultiChoiceObse
             explain = json.dumps(important_words) + '\n\n' + redacted
 
         return {
-            'paragraph': f'Question: {question}.\nParagraph: {paragraph}',
-            'predict_source': choice_source,
+            'debug': f'Question: {question}.\nParagraph: {paragraph}',
+            'predict_prompt': choice_prompt,
+            'predict_answer': choice_answer,
             'predict': choice,
             'correct': correct,
-            'explain_source': importance_source,
+            'explain_prompt': importance_prompt,
+            'explain_answer': importance_answer,
             'explain': explain,
-            'explain_predict_source': redacted_choice_source,
+            'explain_predict_prompt': redacted_choice_prompt,
+            'explain_predict_answer': redacted_choice_answer,
             'explain_predict': redacted_choice,
             'faithful': faithful,
         }

@@ -8,11 +8,13 @@ from introspect.types import IntrospectResult, DatasetSplits, GenerateError, Off
 @pytest.mark.asyncio
 async def test_database_basic_put():
     obs: IntrospectResult = {
-        'paragraph': 'content',
-        'predict_source': 'positive',
+        'debug': 'content',
+        'predict_prompt': 'What is the sentiment?',
+        'predict_answer': 'positive',
         'predict': 'positive',
         'correct': False,
-        'ability_source': 'yes',
+        'ability_prompt': 'Are you able to determine the sentiment?',
+        'ability_answer': 'yes',
         'ability': 'yes',
         'introspect': True,
         'duration': 10,
