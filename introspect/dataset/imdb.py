@@ -27,7 +27,7 @@ class IMDBDataset(SentimentDataset):
 
     def _restructure(self, obs, idx) -> SentimentObservation:
         return {
-            'text': obs['text'],
+            'text': obs['text'].replace('<br />', '\n'),
             'label': self._label_int2str[obs['label']],
             'idx': idx
         }
