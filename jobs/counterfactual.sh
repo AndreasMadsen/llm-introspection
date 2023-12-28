@@ -23,7 +23,7 @@ do
                 --task-config $task_config \
                 --model-name "${model_name}" \
                 --dataset "${dataset}" \
-                --split 'train' \
+                --split 'test' \
                 --seed 0
         done
     done
