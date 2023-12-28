@@ -17,7 +17,7 @@ class GenraizedBabiDataset(MultiChoiceDataset):
         return {
             'paragraph': obs['paragraph'],
             'question': obs['question'],
-            'choices': obs['choices'],
+            'choices': sorted(obs['choices']),
             'label': obs['label'],
             'idx': idx
         }
