@@ -38,7 +38,7 @@ def test_task_extract_paragraph():
     assert c(f'Sure! Here\'s a revised version of the paragraph with a positive sentiment:\n\n{p}') == p
     assert c(f'Sure! Here\'s a revised version of the paragraph with a positive sentiment:\n\n"{p}"') == p
     assert c(f'Paragraph: {p}') == p
-    assert c(f'Paragraph: "{p}"') == f'"{p}"'
+    assert c(f'Paragraph: "{p}"') == f'{p}'
     assert c(f'Paragraph:\n\n{p}') == p
     assert c(f'{p}') == p
 
@@ -49,7 +49,7 @@ def test_task_extract_paragraph():
          ' However, consider saving some surprises for later to enhance the twists.\n'
          '2. Your cast did an admirable job with the resources available. For'
          ' future projects, investing in acting workshops or casting experienced'
-         ' actors could elevate the overall performance.'
+         ' actors could elevate the overall performance.\n'
          '3. The historical setting was a unique touch. To further enhance the'
          ' immersion, consider adding more period-specific details in set design'
          ' and costuming.')
@@ -58,7 +58,7 @@ def test_task_extract_paragraph():
     assert c(f'Sure! Here\'s a revised version of the paragraph with a positive sentiment:\n\n{p}') == p
     assert c(f'Sure! Here\'s a revised version of the paragraph with a positive sentiment:\n\n"{p}"') == p
     assert c(f'Paragraph: {p}') == p
-    assert c(f'Paragraph: "{p}"') == f'"{p}"'
+    assert c(f'Paragraph: "{p}"') == f'{p}'
     assert c(f'Paragraph:\n\n{p}') == p
     assert c(f'{p}') == p
 
@@ -78,8 +78,86 @@ def test_task_extract_paragraph():
     assert c(f'Sure! Here is the redacted version of the paragraph:\n\n{p}') == p
     assert c(f'Sure! Here is the redacted version of the paragraph:\n\n"{p}"') == p
     assert c(f'Paragraph: {p}') == p
-    assert c(f'Paragraph: "{p}"') == f'"{p}"'
+    assert c(f'Paragraph: "{p}"') == f'{p}'
     assert c(f'Paragraph:\n\n{p}') == p
+
+    # Incorrect output
+    assert c(f'Sure! Here is the redacted version of the paragraph:') == None
+    assert c(f'Sure! Here is the redacted version of the paragraph:\n') == None
+    assert c(f'Sure! Here is the redacted version of the paragraph:\n\n') == None
+    assert c(f'Sure! Here is the redacted version of the paragraph:\n\n""') == None
+    assert c(f'Here are some suggestions based on your request:\n\n<ul><li>ABC</li><li>ABC</li></ul>') == None
+    assert c(f'Here are some suggestions based on your request:\n\n<ol><li>ABC</li><li>ABC</li></ol>') == None
+
+    # HTML processing
+    assert c((
+        'Here is the edited version of the paragraph:\n'
+        '\n'
+        '<p>My girlfriend once brought around The Zombie Chronicles for us to watch as a joke:</p>\n'
+        '<ul>\n'
+        '  <li>Drinking bleach</li>\n'
+        '  <li>Rubbing sand in my eyes</li>\n'
+        '  <li>Writing a letter to Brad Sykes and Garrett Clancy</li>\n'
+        '</ul>\n'
+        '\n'
+        '<p>Garrett Clancy, aka Sgt. Ben Draper, wrote this? The guy couldn\'t even dig a hole properly.</p>'
+    )) == (
+        'My girlfriend once brought around The Zombie Chronicles for us to watch as a joke:\n'
+        '\n'
+        '* Drinking bleach\n'
+        '* Rubbing sand in my eyes\n'
+        '* Writing a letter to Brad Sykes and Garrett Clancy\n'
+        '\n'
+        'Garrett Clancy, aka Sgt. Ben Draper, wrote this? The guy couldn\'t even dig a hole properly.'
+    )
+
+    p = (
+        'Watched on August 3rd, 2003 - 2 out of 10(Director-Brad Sykes):'
+        ' A mindless 3-D movie about flesh-eating zombies set in a three-story building.'
+        ' Although it may seem exciting at first, the lack of plot development and repetitive'
+        ' nature of the film make for a boring experience.')
+    assert c((
+        f'<blockquote>\n\n\n{p}</blockquote>'
+    )) == p
+
+    assert c((
+        'To make the sentiment positive, we need to change some words and phrases. Here are the changes made:\n'
+        '\n'
+        '- Instead of "Not much to say", we changed it to "There isn\'t much to say."\n'
+        '- We removed "A plot you can pretty much peg," because it sounds negative.\n'
+        '- We replaced "Nothing overly wrong with this film," with "It wasn\'t bad."\n'
+        '- We added "Overall, it was enjoyable." at the end of the sentence.\n'
+        '\n'
+        'Here\'s the updated paragraph:\n'
+        '\n'
+        f'{p}'
+    )) == p
+
+    assert c((
+        'To make the sentiment positive, I suggest removing negative words or phrases such'
+        ' as "overrated", "unforgivable", "dullness", "microwave popcorn", "spawned",'
+        ' "remake", "random", "quirky", "shouldn\'t", and "assume". Instead, focus'
+        ' on highlighting the good aspects of the film such as the performances,'
+        ' iconic characters, and impact on the genre. Here\'s an example:\n'
+        '\n'
+        f'{p}'
+    )) == p
+
+    p = (
+        'Good movie overall. It has great action sequences,'
+        ' good acting performances from Eddie Murphy and Charles Dance, and some funny moments.'
+        ' Although there may have been some flaws in certain aspects like special effects and'
+        ' pacing, it still manages to entertain viewers.'
+    )
+    assert c((
+        'Here\'s an example:\n'
+        '\n'
+        'Positive Sentiment:\n'
+        '\n'
+        '\n'
+        '\n'
+        f'{p}\n'
+    )) == p
 
 def test_task_extract_list_content():
     c = extract_list_content
