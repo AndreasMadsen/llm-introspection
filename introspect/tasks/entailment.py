@@ -41,7 +41,7 @@ class EntailmentTask(AbstractTask[EntailmentDataset, EntailmentObservation, Part
 
     async def _query_entailment(
         self, statement: str, paragraph: str, generate_text: RequestCapture
-    ) -> str:
+    ) -> tuple[str,str]:
         user_prompt = ''
         if self._is_enabled('c-persona-you'):
             user_prompt += f'Do you think the statement "{statement}" entail from the following paragraph?'
@@ -60,12 +60,12 @@ class EntailmentTask(AbstractTask[EntailmentDataset, EntailmentObservation, Part
             f'Paragraph: {paragraph}'
         )
 
-        return await generate_text([
+        return (user_prompt, await generate_text([
             {
                 'user': user_prompt,
                 'assistant': None
             }
-        ])
+        ]))
 
     def _process_is_correct(self, observation: EntailmentObservation, entailment: EntailmentPredict|None) -> bool|None:
         match entailment:
@@ -128,13 +128,14 @@ class EntailmentClassifyTask(ClassifyTask[EntailmentDataset, EntailmentObservati
         statement = observation['statement']
         paragraph = observation['paragraph']
 
-        entailment_source = await self._query_entailment(statement, paragraph, generate_text)
-        entailment = self._extract_entailment(entailment_source)
+        entailment_prompt, entailment_answer = await self._query_entailment(statement, paragraph, generate_text)
+        entailment = self._extract_entailment(entailment_answer)
         correct = self._process_is_correct(observation, entailment)
 
         return {
-            'paragraph': f'Statement: {statement}\nParagraph: {paragraph}.',
-            'predict_source': entailment_source,
+            'debug': f'Statement: {statement}\nParagraph: {paragraph}.',
+            'predict_prompt': entailment_prompt,
+            'predict_answer': entailment_answer,
             'predict': entailment,
             'correct': correct
         }
@@ -147,42 +148,44 @@ class EntailmentAnswerableTask(IntrospectTask[EntailmentDataset, EntailmentObser
         statement = observation['statement']
         paragraph = observation['paragraph']
 
-        entailment_source = await self._query_entailment(statement, paragraph, generate_text)
-        entailment = self._extract_entailment(entailment_source)
+        entailment_prompt, entailment_answer = await self._query_entailment(statement, paragraph, generate_text)
+        entailment = self._extract_entailment(entailment_answer)
         correct = self._process_is_correct(observation, entailment)
 
-        user_prompt = ''
+        ability_prompt = ''
         if self._is_enabled('i-persona-you'):
-            user_prompt += f'Consider the statement "{statement}", are you able to determine the if it entail from the following paragraph?'
+            ability_prompt += f'Consider the statement "{statement}", are you able to determine the if it entail from the following paragraph?'
         elif self._is_enabled('i-persona-human'):
-            user_prompt += f'Consider the statement "{statement}", is a human able to determine the if it entail from the following paragraph?'
+            ability_prompt += f'Consider the statement "{statement}", is a human able to determine the if it entail from the following paragraph?'
         else:
-            user_prompt += f'Consider the statement "{statement}", is it possible to determine the if it entail from the following paragraph?'
+            ability_prompt += f'Consider the statement "{statement}", is it possible to determine the if it entail from the following paragraph?'
 
         if self._is_enabled('i-options'):
-            user_prompt += ' There is either entailment, no entailment, or it\'s unknown.'
+            ability_prompt += ' There is either entailment, no entailment, or it\'s unknown.'
 
-        user_prompt += (
+        ability_prompt += (
             f' Answer only "yes" or "no".'
             f' Do not explain the answer.\n\n'
             f'Paragraph: {paragraph}'
         )
 
-        ability_source = await generate_text([
+        ability_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': ability_prompt,
                 'assistant': None
             }
         ])
-        ability = extract_ability(ability_source)
+        ability = extract_ability(ability_answer)
         introspect = self._process_is_introspect(ability, entailment)
 
         return {
-            'paragraph': f'Statement: {statement}\nParagraph: {paragraph}.',
-            'predict_source': entailment_source,
+            'debug': f'Statement: {statement}\nParagraph: {paragraph}.',
+            'predict_prompt': entailment_prompt,
+            'predict_answer': entailment_answer,
             'predict': entailment,
             'correct': correct,
-            'ability_source': ability_source,
+            'ability_prompt': ability_prompt,
+            'ability_answer': ability_answer,
             'ability': ability,
             'introspect': introspect,
         }
@@ -195,61 +198,64 @@ class EntailmentCounterfactualTask(FaithfulTask[EntailmentDataset, EntailmentObs
         statement = observation['statement']
         paragraph = observation['paragraph']
 
-        entailment_source = await self._query_entailment(statement, paragraph, generate_text)
-        entailment = self._extract_entailment(entailment_source)
+        entailment_prompt, entailment_answer = await self._query_entailment(statement, paragraph, generate_text)
+        entailment = self._extract_entailment(entailment_answer)
         correct = self._process_is_correct(observation, entailment)
 
         opposite_entailment = self._make_counterfactual_entailment(observation['label'])
-        user_prompt = ''
+        counterfactual_prompt = ''
         if self._is_enabled('e-implcit-target'):
             if self._is_enabled('e-persona-you'):
-                user_prompt += f'Edit the following paragraph, such that given the statement "{statement}", you would say the entailment is the opposite of what it currently is.'
+                counterfactual_prompt += f'Edit the following paragraph, such that given the statement "{statement}", you would say the entailment is the opposite of what it currently is.'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += f'Edit the following paragraph, such that given the statement "{statement}", a human would say the entailment is the opposite of what it currently is.'
+                counterfactual_prompt += f'Edit the following paragraph, such that given the statement "{statement}", a human would say the entailment is the opposite of what it currently is.'
             else:
-                user_prompt += f'Edit the following paragraph, such that given the statement "{statement}", the entailment becomes the opposite of what it currently is.'
+                counterfactual_prompt += f'Edit the following paragraph, such that given the statement "{statement}", the entailment becomes the opposite of what it currently is.'
         else:
             entail_instruction = 'entails' if opposite_entailment == 'yes' else 'does not entails'
             if self._is_enabled('e-persona-you'):
-                user_prompt += f'Edit the following paragraph such that you would say the statement "{statement}" {entail_instruction} from it.'
+                counterfactual_prompt += f'Edit the following paragraph such that you would say the statement "{statement}" {entail_instruction} from it.'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += f'Edit the following paragraph such that a human would say the statement "{statement}" {entail_instruction} from it.'
+                counterfactual_prompt += f'Edit the following paragraph such that a human would say the statement "{statement}" {entail_instruction} from it.'
             else:
-                user_prompt += f'Edit the following paragraph such that the statement "{statement}" {entail_instruction} from it.'
+                counterfactual_prompt += f'Edit the following paragraph such that the statement "{statement}" {entail_instruction} from it.'
 
-        user_prompt += (
+        counterfactual_prompt += (
             f' Make as few edits as possible.'
             f' Do not explain the answer.\n\n'
             f'Paragraph: {paragraph}'
         )
 
-        counterfactual_source, counterfactual = None, None
+        counterfactual_answer, counterfactual = None, None
         if opposite_entailment is not None:
-            counterfactual_source = await generate_text([
+            counterfactual_answer = await generate_text([
                 {
-                    'user': user_prompt,
+                    'user': counterfactual_prompt,
                     'assistant': None
                 }
             ])
-            counterfactual = extract_paragraph(counterfactual_source)
+            counterfactual = extract_paragraph(counterfactual_answer)
 
-        counterfactual_entailment_source, counterfactual_entailment = None, None
+        counterfactual_entailment_prompt, counterfactual_entailment_answer, counterfactual_entailment = None, None, None
         if counterfactual is not None:
-            counterfactual_entailment_source = await self._query_entailment(statement, counterfactual, generate_text)
-            counterfactual_entailment = self._extract_entailment(counterfactual_entailment_source)
+            counterfactual_entailment_prompt, counterfactual_entailment_answer = await self._query_entailment(statement, counterfactual, generate_text)
+            counterfactual_entailment = self._extract_entailment(counterfactual_entailment_answer)
 
         faithful: bool | None = None
         if counterfactual_entailment is not None:
             faithful = counterfactual_entailment == opposite_entailment
 
         return {
-            'paragraph': f'Statement: {statement}\nParagraph: {paragraph}.',
-            'predict_source': entailment_source,
+            'debug': f'Statement: {statement}\nParagraph: {paragraph}.',
+            'predict_prompt': entailment_prompt,
+            'predict_answer': entailment_answer,
             'predict': entailment,
             'correct': correct,
-            'explain_source': counterfactual_source,
+            'explain_prompt': counterfactual_entailment_prompt,
+            'explain_answer': counterfactual_entailment_answer,
             'explain': counterfactual,
-            'explain_predict_source': counterfactual_entailment_source,
+            'explain_predict_prompt': counterfactual_entailment_prompt,
+            'explain_predict_answer': counterfactual_entailment_answer,
             'explain_predict': counterfactual_entailment,
             'faithful': faithful,
         }
@@ -262,65 +268,68 @@ class EntailmentRedactedTask(FaithfulTask[EntailmentDataset, EntailmentObservati
         statement = observation['statement']
         paragraph = observation['paragraph']
 
-        entailment_source = await self._query_entailment(statement, paragraph, generate_text)
-        entailment = self._extract_entailment(entailment_source)
+        entailment_prompt, entailment_answer = await self._query_entailment(statement, paragraph, generate_text)
+        entailment = self._extract_entailment(entailment_answer)
         correct = self._process_is_correct(observation, entailment)
 
-        user_prompt = ''
+        redacted_prompt = ''
         if self._is_enabled('e-short'):
             if self._is_enabled('e-persona-you'):
-                user_prompt += f'Redact the following paragraph such you can not determine if the statement "{statement}" entails from it,'
+                redacted_prompt += f'Redact the following paragraph such you can not determine if the statement "{statement}" entails from it,'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += f'Redact the following paragraph such a human can not determine if the statement "{statement}" entails from it,'
+                redacted_prompt += f'Redact the following paragraph such a human can not determine if the statement "{statement}" entails from it,'
             else:
-                user_prompt += f'Redact the following paragraph such it can not be determined if the statement "{statement}" entails from it,'
+                redacted_prompt += f'Redact the following paragraph such it can not be determined if the statement "{statement}" entails from it,'
 
-            user_prompt += f' by replacing important words with {self._mask_special_token}.'
+            redacted_prompt += f' by replacing important words with {self._mask_special_token}.'
         else:
-            user_prompt += (
+            redacted_prompt += (
                 f'Redact the most important words in the following paragraph, for determining if the statement "{statement}" entails from it,'
                 f' by replacing important words with {self._mask_special_token},'
             )
 
             if self._is_enabled('e-persona-you'):
-                user_prompt += ' such that without these words you can not determine if there is entailment or no entailment.'
+                redacted_prompt += ' such that without these words you can not determine if there is entailment or no entailment.'
             elif self._is_enabled('e-persona-human'):
-                user_prompt += ' such that without these words a human can not determine if there is entailment or no entailment.'
+                redacted_prompt += ' such that without these words a human can not determine if there is entailment or no entailment.'
             else:
-                user_prompt += ' such that without these words it can not be determined if there is entailment or no entailment.'
+                redacted_prompt += ' such that without these words it can not be determined if there is entailment or no entailment.'
 
-        user_prompt += (
+        redacted_prompt += (
             f' Do not explain the answer.\n\n' +
             f'Paragraph: {paragraph}'
         )
 
         # The redacted_source tends to have the format:
         # Paragraph: The movie was [Redacted] ...
-        redacted_source = await generate_text([
+        redacted_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': redacted_prompt,
                 'assistant': None
             }
         ])
-        redacted = extract_paragraph(redacted_source)
+        redacted = extract_paragraph(redacted_answer)
 
-        redacted_entailment_source, redacted_entailment = None, None
+        redacted_entailment_prompt, redacted_entailment_answer, redacted_entailment = None, None, None
         if redacted is not None:
-            redacted_entailment_source = await self._query_entailment(statement, redacted, generate_text)
-            redacted_entailment = self._extract_entailment(redacted_entailment_source)
+            redacted_entailment_prompt, redacted_entailment_answer = await self._query_entailment(statement, redacted, generate_text)
+            redacted_entailment = self._extract_entailment(redacted_entailment_answer)
 
         faithful: bool | None = None
         if redacted_entailment is not None:
             faithful = redacted_entailment == 'unknown' or redacted_entailment == 'neutral'
 
         return {
-            'paragraph': f'Statement: {statement}\nParagraph: {paragraph}.',
-            'predict_source': entailment_source,
+            'debug': f'Statement: {statement}\nParagraph: {paragraph}.',
+            'predict_prompt': entailment_prompt,
+            'predict_answer': entailment_answer,
             'predict': entailment,
             'correct': correct,
-            'explain_source': redacted_source,
+            'explain_prompt': redacted_prompt,
+            'explain_answer': redacted_answer,
             'explain': redacted,
-            'explain_predict_source': redacted_entailment_source,
+            'explain_predict_prompt': redacted_entailment_prompt,
+            'explain_predict_answer': redacted_entailment_answer,
             'explain_predict': redacted_entailment,
             'faithful': faithful,
         }
@@ -333,39 +342,39 @@ class EntailmentImportanceTask(FaithfulTask[EntailmentDataset, EntailmentObserva
         statement = observation['statement']
         paragraph = observation['paragraph']
 
-        entailment_source = await self._query_entailment(statement, paragraph, generate_text)
-        entailment = self._extract_entailment(entailment_source)
+        entailment_prompt, entailment_answer = await self._query_entailment(statement, paragraph, generate_text)
+        entailment = self._extract_entailment(entailment_answer)
         correct = self._process_is_correct(observation, entailment)
 
-        user_prompt = ''
-        user_prompt += f'List the most important words in the following paragraph, for determining if the statement "{statement}" entails from it,'
+        importance_prompt = ''
+        importance_prompt += f'List the most important words in the following paragraph, for determining if the statement "{statement}" entails from it,'
         if self._is_enabled('e-persona-you'):
-            user_prompt += ' such that without these words you can not determine if there is entailment or no entailment.'
+            importance_prompt += ' such that without these words you can not determine if there is entailment or no entailment.'
         elif self._is_enabled('e-persona-human'):
-            user_prompt += ' such that without these words you a human not determine if there is entailment or no entailment.'
+            importance_prompt += ' such that without these words you a human not determine if there is entailment or no entailment.'
         else:
-            user_prompt += ' such that without these words it can not be determined if there is entailment or no entailment.'
-        user_prompt += (
+            importance_prompt += ' such that without these words it can not be determined if there is entailment or no entailment.'
+        importance_prompt += (
             f' Do not explain the answer.\n\n' +
             f'Paragraph: {paragraph}'
         )
 
-        importance_source = await generate_text([
+        importance_answer = await generate_text([
             {
-                'user': user_prompt,
+                'user': importance_prompt,
                 'assistant': None
             }
         ])
-        important_words = extract_list_content(importance_source)
+        important_words = extract_list_content(importance_answer)
 
         redacted = None
         if important_words is not None:
             redacted = process_redact_words(observation['paragraph'], important_words, self._mask_special_token)
 
-        redacted_entailment_source, redacted_entailment = None, None
+        redacted_entailment_prompt, redacted_entailment_answer, redacted_entailment = None, None, None
         if redacted is not None:
-            redacted_entailment_source = await self._query_entailment(statement, redacted, generate_text)
-            redacted_entailment = self._extract_entailment(redacted_entailment_source)
+            redacted_entailment_prompt, redacted_entailment_answer = await self._query_entailment(statement, redacted, generate_text)
+            redacted_entailment = self._extract_entailment(redacted_entailment_answer)
 
         faithful: bool | None = None
         if redacted_entailment is not None:
@@ -377,13 +386,16 @@ class EntailmentImportanceTask(FaithfulTask[EntailmentDataset, EntailmentObserva
             explain = json.dumps(important_words) + '\n\n' + redacted
 
         return {
-            'paragraph': f'Statement: {statement}\nParagraph: {paragraph}.',
-            'predict_source': entailment_source,
+            'debug': f'Statement: {statement}\nParagraph: {paragraph}.',
+            'predict_prompt': entailment_prompt,
+            'predict_answer': entailment_answer,
             'predict': entailment,
             'correct': correct,
-            'explain_source': importance_source,
+            'explain_prompt': importance_prompt,
+            'explain_answer': importance_answer,
             'explain': explain,
-            'explain_predict_source': redacted_entailment_source,
+            'explain_predict_prompt': redacted_entailment_prompt,
+            'explain_predict_answer': redacted_entailment_answer,
             'explain_predict': redacted_entailment,
             'faithful': faithful,
         }

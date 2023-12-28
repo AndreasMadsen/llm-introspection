@@ -9,8 +9,9 @@ class TaskResult(TypedDict, Generic[LabelType]):
     label: Required[LabelType]
 
 class PartialClassifyResult(TypedDict, Generic[PredictType]):
-    paragraph: Required[str|None]
-    predict_source: Required[str|None]
+    debug: Required[str|None]
+    predict_prompt: Required[str|None]
+    predict_answer: Required[str|None]
     predict: Required[PredictType|None]
     correct: Required[bool|None]
 
@@ -18,8 +19,8 @@ class ClassifyResult(TaskResult[LabelType], PartialClassifyResult[PredictType]):
     pass
 
 class PartialIntrospectResult(PartialClassifyResult[PredictType], Generic[PredictType]):
-    paragraph: Required[str|None]
-    ability_source: Required[str|None]
+    ability_prompt: Required[str|None]
+    ability_answer: Required[str|None]
     ability: Required[Literal['yes', 'no']|None]
     introspect: Required[bool|None]
 
@@ -27,10 +28,11 @@ class IntrospectResult(TaskResult[LabelType], PartialIntrospectResult[PredictTyp
     pass
 
 class PartialFaithfulResult(PartialClassifyResult[PredictType], Generic[PredictType]):
-    paragraph: Required[str|None]
-    explain_source: Required[str|None]
+    explain_prompt: Required[str|None]
+    explain_answer: Required[str|None]
     explain: Required[str|None]
-    explain_predict_source: Required[str|None]
+    explain_predict_prompt: Required[str|None]
+    explain_predict_answer: Required[str|None]
     explain_predict: Required[PredictType|None]
     faithful: Required[bool|None]
 
