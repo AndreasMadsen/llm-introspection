@@ -12,7 +12,7 @@ python -m pip install --no-index -U setuptools
 # Download package dependencies
 mkdir -p $HOME/python_wheels
 cd $HOME/python_wheels
-pip download --no-deps 'datasets >= 2.14.6' 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
+pip download --no-deps 'datasets >= 2.14.6,<2.15.0' 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
 
 # Install project
 cd $HOME/workspace/introspect
