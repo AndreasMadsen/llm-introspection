@@ -20,7 +20,7 @@ class MCTestDataset(MultiChoiceDataset):
         return {
             'paragraph': obs['story'].replace(r'\newline', '\n'),
             'question': obs['question'],
-            'choices': list(obs['answer_options'].values()),
+            'choices': sorted(obs['answer_options'].values()),
             'label': obs['answer_options'][obs['answer']],
             'idx': idx
         }
