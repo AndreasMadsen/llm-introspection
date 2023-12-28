@@ -72,6 +72,8 @@ def extract_paragraph(source: str) -> str|None:
     ), find_last=True)(paragraph):
         paragraph = paragraph[m.end():]
 
+    # Example:
+    # Here is a modified paragraph:
     elif m := regex.search(r"\b(Here's|Here are|Here is)\b[\w ]*:", paragraph, flags=regex.REVERSE | regex.VERSION1):
         paragraph = paragraph[m.end():]
 
