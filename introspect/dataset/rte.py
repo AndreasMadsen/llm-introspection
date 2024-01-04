@@ -9,9 +9,9 @@ from ..types import EntailmentObservation
 class RTEDataset(EntailmentDataset):
     name = 'RTE'
 
-    _split_train = 'train'
-    _split_valid = 'validation'
-    _split_test = 'test'
+    _split_train = 'train[:80%]'
+    _split_valid = 'train[80%:]'
+    _split_test = 'validation'
 
     @cached_property
     def _label_int2str(self) -> Mapping[int, Literal['yes', 'no']]:
