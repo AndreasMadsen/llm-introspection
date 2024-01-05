@@ -121,7 +121,7 @@ class IntrospectAggregator(AbstractAggregator[IntrospectResult, IntrospectAggreg
         else:
             self._introspect_count += answer['introspect']
             self._correct_count += answer['correct']
-            self._introspect_and_correct_count = (answer['introspect'] and answer['correct'])
+            self._introspect_and_correct_count += (answer['introspect'] and answer['correct'])
             self._answer_counts.increment(answer)
 
     @property
