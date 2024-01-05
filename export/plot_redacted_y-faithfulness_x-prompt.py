@@ -53,7 +53,7 @@ parser.add_argument('--datasets',
                     help='The dataset to fine-tune on')
 parser.add_argument('--split',
                     action='store',
-                    default=DatasetSplits.TRAIN,
+                    default=DatasetSplits.TEST,
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')

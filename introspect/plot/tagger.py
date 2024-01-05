@@ -1,4 +1,5 @@
 
+import re
 from typing import Literal
 
 def classify_persona(task_config: list[str]) -> Literal['human', 'you', 'objective']:
@@ -36,3 +37,15 @@ def explain_counterfactual_target(task_config: list[str]) -> Literal['implicit',
 
 def explain_redact(task_config: list[str]) -> Literal['no-redact', 'removed', 'redacted']:
     return classify_redact(task_config)
+
+def model_size(model_name: str) -> int|None:
+    if m := re.match(r'([a-z0-9-]+)-([1-9][0-9]*)b$', model_name, flags=re.IGNORECASE):
+        return int(m.group(2))
+    else:
+        return None
+
+def model_name(model_name: str) -> str|None:
+    if m := re.match(r'([a-z0-9-]+)-([1-9][0-9]*)b$', model_name, flags=re.IGNORECASE):
+        return m.group(1)
+    else:
+        return None
