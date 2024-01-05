@@ -52,7 +52,7 @@ parser.add_argument('--dataset',
                     help='The dataset to fine-tune on')
 parser.add_argument('--split',
                     action='store',
-                    default=DatasetSplits.TRAIN,
+                    default=DatasetSplits.TEST,
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                 legend_box_margin=0,
                 legend_position='bottom',
                 legend_background=p9.element_rect(fill='#F2F2F2'),
-                axis_text_x=p9.element_text(angle = 60, hjust=1)
+                axis_text_x=p9.element_text(angle = 60)
             )
         else:
             raise ValueError('unknown format')

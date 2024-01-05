@@ -11,7 +11,7 @@ import plotnine as p9
 from introspect.dataset import datasets
 from introspect.types import DatasetSplits, SystemMessage, TaskCategories
 from introspect.util import generate_experiment_id
-from introspect.plot import annotation
+from introspect.plot import annotation, tag
 
 parser = argparse.ArgumentParser(
     description = 'Plots the 0% masking test performance given different training masking ratios'
@@ -44,9 +44,10 @@ parser.add_argument('--system-message',
                     type=SystemMessage,
                     choices=list(SystemMessage),
                     help='Use a system message')
-parser.add_argument('--dataset',
+parser.add_argument('--datasets',
+                    nargs='+',
                     action='store',
-                    default='IMDB',
+                    default=['IMDB'],
                     type=str,
                     choices=datasets.keys(),
                     help='The dataset to fine-tune on')
@@ -56,12 +57,13 @@ parser.add_argument('--split',
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
-parser.add_argument('--task',
+parser.add_argument('--tasks',
+                    nargs='+',
                     action='store',
-                    default=TaskCategories.CLASSIFY,
+                    default=[TaskCategories.COUNTERFACTUAL, TaskCategories.IMPORTANCE, TaskCategories.REDACTED],
                     type=TaskCategories,
                     choices=list(TaskCategories),
-                    help='Which task to run')
+                    help='Which tasks to run')
 parser.add_argument('--seed',
                     action='store',
                     default=0,
@@ -72,10 +74,10 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('classify_classes',
+    experiment_id = generate_experiment_id('explain_faithfulness',
         model=args.model_name, system_message=args.system_message,
-        dataset=args.dataset, split=args.split,
-        task=args.task,
+        dataset='-'.join(args.datasets), split=args.split,
+        task='-'.join(args.tasks),
         seed=args.seed)
 
     if args.stage in ['both', 'preprocess']:
@@ -89,61 +91,75 @@ if __name__ == "__main__":
             except Exception as error:
                 raise Exception(f'{file} caused an error') from error
 
-
             if data['args']['model_name'] == args.model_name and \
                data['args']['system_message'] == args.system_message and \
-               data['args']['dataset'] == args.dataset and \
+               data['args']['dataset'] in args.datasets and \
                data['args']['split'] == args.split and \
-               data['args']['task'] == args.task:
-                data['plot'] = { 'redact': 'redact', 'persona': 'no-persona' }
-                if 'c-no-redacted' in data['args']['task_config']:
-                    data['plot']['redact'] = 'no-redact'
-                if 'c-persona-human' in data['args']['task_config']:
-                    data['plot']['persona'] = 'human-persona'
-                elif 'c-persona-you' in data['args']['task_config']:
-                     data['plot']['persona'] = 'you-persona'
-                results.append(data)
+               data['args']['task'] in args.tasks:
+                if data['results']['error'] > 0 or data['results']['missmatch'] > 0:
+                    tqdm.write(f'Detected error ({data["results"]["error"]}) or missmatch ({data["results"]["missmatch"]}) in {file.name}')
+
+                data['plot'] = {
+                    'x-prompt': None,
+                    'persona': tag.explain_persona(data['args']['task_config'])
+                }
+
+                match data['args']['task']:
+                    case 'counterfactual':
+                        data['plot']['x-prompt'] = tag.explain_counterfactual_target(data['args']['task_config'])
+                    case 'importance' | 'redacted':
+                        data['plot']['x-prompt'] = tag.explain_redact(data['args']['task_config'])
+
+                if None not in data['plot'].values():
+                    results.append(data)
+
 
         # Convert results into a flat DataFrame
-        df = pd.json_normalize(results).explode('results.answer', ignore_index=True)
-        results_answer = pd.json_normalize(list(df.pop('results.answer'))).add_prefix('results.answer.')
-        df = pd.concat([df, results_answer], axis=1)
-
+        df = pd.json_normalize(results)
         os.makedirs(args.persistent_dir / 'pandas', exist_ok=True)
         df.to_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
 
+        print(df.loc[:, ['args.dataset', 'plot.x-prompt', 'plot.persona', 'results.faithful', 'results.faithful_and_correct']])
+
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
+        df = df.assign(**{
+          'plot.faithfulness': df.loc[:, 'results.faithful_and_correct'] / df.loc[:, 'results.correct']
+        })
 
-        print(df.loc[:, ['plot.persona', 'plot.redact', 'results.answer.predict', 'results.answer.count', 'results.answer.label']])
+        def fn(breaks):
+            print(breaks)
+            return breaks
 
         p = (
-            p9.ggplot(df, p9.aes(x='results.answer.predict')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.label'), stat="identity") +
-            p9.facet_grid('plot.persona ~ plot.redact',
-                          labeller=(annotation.persona | annotation.redact).labeller) + # type: ignore
+            p9.ggplot(df, p9.aes(x='plot.x-prompt')) +
+            p9.geom_bar(p9.aes(y='plot.faithfulness', fill='plot.persona'), stat="identity", position="dodge") + # type: ignore
+            p9.facet_grid('args.dataset ~ args.task', scales='free_x', labeller=annotation.explain_task.labeller) + # type: ignore
             p9.scale_y_continuous(
-                name='Count'
+                name='Faithfulness',
+                limits=[0, 1]
             ) +
             p9.scale_x_discrete(
-                name='Predicted sentiment'
+                name='Explanation dependent prompt variation',
+                labels=(annotation.redact_token | annotation.counterfactual_target).labels_callable
             ) +
             p9.scale_fill_discrete(
-                 aesthetics=["fill"],
-                 name='True sentiment'
-            ) +
-            p9.ggtitle(f'{args.dataset} - Classify')
+                breaks=annotation.persona.breaks,
+                labels=annotation.persona.labels,
+                aesthetics=["fill"],
+                name='Persona instruction'
+            )
         )
 
         if args.format == 'paper':
-            size = (3.03209, 4.5)
-            p += p9.guides(fill=p9.guide_legend(ncol=2))
+            size = (3.03209, 4.0)
+            p += p9.guides(fill=p9.guide_legend(ncol=3))
             p += p9.theme(
                 text=p9.element_text(size=10, fontname='Times New Roman'),
                 legend_box_margin=0,
                 legend_position='bottom',
                 legend_background=p9.element_rect(fill='#F2F2F2'),
-                axis_text_x=p9.element_text(angle = 60, hjust=1)
+                axis_text_x=p9.element_text(angle = 60)
             )
         else:
             raise ValueError('unknown format')

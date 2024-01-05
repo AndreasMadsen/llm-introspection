@@ -53,7 +53,7 @@ parser.add_argument('--datasets',
                     help='The dataset to fine-tune on')
 parser.add_argument('--split',
                     action='store',
-                    default=DatasetSplits.TRAIN,
+                    default=DatasetSplits.TEST,
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
@@ -114,32 +114,32 @@ if __name__ == "__main__":
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
         df = df.assign(**{
-          'plot.accuracy': df.loc[:, 'results.correct'] / df.loc[:, 'results.total']
+          'plot.accuracy': df.loc[:, 'results.correct'] / (df.loc[:, 'results.total'] - df.loc[:, 'results.missmatch'])
         })
 
         p = (
-            p9.ggplot(df, p9.aes(x='plot.persona')) +
-            p9.geom_bar(p9.aes(y='plot.accuracy', fill='plot.redact'), stat="identity", position="dodge") + # type: ignore
+            p9.ggplot(df, p9.aes(x='plot.redact')) +
+            p9.geom_bar(p9.aes(y='plot.accuracy', fill='plot.persona'), stat="identity", position="dodge") + # type: ignore
             p9.facet_wrap('args.dataset', nrow=1) +
             p9.scale_y_continuous(
                 name='Accuracy',
                 limits=[0, 1]
             ) +
             p9.scale_x_discrete(
-                breaks=annotation.persona.breaks,
-                labels=annotation.persona.labels,
-                name='Persona instruction'
-            ) +
-            p9.scale_fill_discrete(
                 breaks=annotation.redact.breaks,
                 labels=annotation.redact.labels,
-                aesthetics=["fill"],
                 name='Redaction instruction'
+            ) +
+            p9.scale_fill_discrete(
+                breaks=annotation.persona.breaks,
+                labels=annotation.persona.labels,
+                name='Persona instruction',
+                aesthetics=["fill"],
             )
         )
 
         if args.format == 'paper':
-            size = (3.03209, 3.0)
+            size = (3.03209, 2.5)
             p += p9.guides(fill=p9.guide_legend(ncol=3))
             p += p9.theme(
                 text=p9.element_text(size=10, fontname='Times New Roman'),
