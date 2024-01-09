@@ -27,7 +27,7 @@ multi_choice_datasets = [
 ]
 
 entailment_datasets = [
-    DatasetExpectations('RTE', 2490, 277, 3000),
+    DatasetExpectations('RTE', 1992, 498, 277),
 ]
 
 @pytest.mark.parametrize("info", sentiment_datasets, ids=lambda info: info.name)
