@@ -75,9 +75,9 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('classify_accuracy',
-        model='-'.join(args.model_names),
-        dataset='-'.join(args.datasets), split=args.split,
+    experiment_id = generate_experiment_id('classify_y-accuracy_x-model',
+        model=''.join(m[0] for m in args.model_names),
+        dataset=''.join(d[0] for d in args.datasets), split=args.split,
         task=args.task, task_config=args.task_config,
         seed=args.seed)
 

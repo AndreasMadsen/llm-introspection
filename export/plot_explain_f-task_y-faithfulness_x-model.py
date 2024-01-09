@@ -76,10 +76,10 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('explain_faithfulness',
-        model='-'.join(args.model_names),
-        dataset='-'.join(args.datasets), split=args.split,
-        task='-'.join(args.tasks), task_config=args.task_config,
+    experiment_id = generate_experiment_id('explain_f-task_y-faithfulness_x-model',
+        model=''.join(m[0] for m in args.model_names),
+        dataset=''.join(d[0] for d in args.datasets), split=args.split,
+        task=''.join(t[0] for t in args.tasks), task_config=args.task_config,
         seed=args.seed)
 
     if args.stage in ['both', 'preprocess']:
