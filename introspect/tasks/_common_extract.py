@@ -14,6 +14,30 @@ def extract_ability(source: str) -> Literal['yes', 'no']|None:
             ability = None
     return ability
 
+def _remove_html(paragraph: str) -> str:
+    # Remove HTML, primarily by Falcon
+    paragraph = replace_contains((
+        '<p>',
+        '</p>',
+        '<ul>',
+        '</ul>',
+        '<ol>',
+        '</ol>',
+        '<blockquote>',
+        '</blockquote>',
+    ), '\n\n')(paragraph)
+    paragraph = replace_contains(('<br>', '<br />'), '\n')(paragraph)
+    paragraph = paragraph.replace('<li>', '* ').replace('</li>', '')
+
+    # Reduce newlines
+    paragraph = re.sub(r'\n\n+', '\n\n', paragraph)
+    # Strip space on each line
+    paragraph = '\n'.join(line.strip() for line in paragraph.splitlines())
+    # Strip surronding newlines
+    paragraph = paragraph.strip()
+
+    return paragraph
+
 def extract_paragraph(source: str) -> str|None:
     paragraph = source
 
@@ -30,6 +54,26 @@ def extract_paragraph(source: str) -> str|None:
     # <p>I am excited to watch this movie! After watching the trailer...
     if match_contains(('<p>', '<ul>', '<ol>', '<blockqoute>'))(paragraph):
         paragraph = paragraph[paragraph.find('<'):]
+
+    # Remove HTML
+    paragraph = _remove_html(paragraph)
+
+    # Refuse to answer:
+    # Example:
+    # Sorry, as an AI language model, I cannot provide any response or opinion regarding the content mentioned above.
+    if match_startwith((
+        'I am sorry,',
+        'Sorry,',
+        'I cannot determine',
+        'Hi ',
+    ))(paragraph):
+        return None
+    elif match_contains((
+        'as an AI language model',
+        'as per my programming, I cannot',
+        'goes against my programming'
+    ))(paragraph):
+        return None
 
     # Example:
     # We could do make the follow changes:
@@ -68,7 +112,9 @@ def extract_paragraph(source: str) -> str|None:
         'paragraph could be:',
         'without changing its meaning:',
         'the paragraph could be something like this:',
-        'without explaining why:'
+        'without explaining why:',
+        'paragraph are as follows:',
+        'here are the redacted words:',
     ), find_last=True)(paragraph):
         paragraph = paragraph[m.end():]
 
@@ -91,37 +137,25 @@ def extract_paragraph(source: str) -> str|None:
         'Here\'s',
         'Thank you for sharing your thoughts',
         'Thank you for sharing your opinion',
-        'I am sorry,'
         'Thank you for your feedback.',
         'This paragraph has been edited',
         'What specific changes',
         'What specific aspects of the original text did you change',
         'This paragraph',
-        'Thank you for sharing this information with me.'
+        'Thank you for sharing this information with me.',
+        'Based on your prompt',
+        'Based on your instructions',
+        'Based on your input',
+        'Based on your description',
+        'Based on the provided text',
+        'Based on the given text',
+        'Based on my analysis',
     ))(paragraph):
         first_break_index = paragraph.find('\n', 0)
         if first_break_index < 0:
             return None
         paragraph = paragraph[first_break_index + 1:]
 
-    # Remove HTML, primarily by Falcon
-    paragraph = replace_contains((
-        '<p>',
-        '</p>',
-        '<ul>',
-        '</ul>',
-        '<ol>',
-        '</ol>',
-        '<blockquote>',
-        '</blockquote>',
-    ), '\n\n')(paragraph)
-    paragraph = replace_contains(('<br>', '<br />'), '\n')(paragraph)
-    paragraph = paragraph.replace('<li>', '* ').replace('</li>', '')
-
-    # Reduce newlines
-    paragraph = re.sub(r'\n\n+', '\n\n', paragraph)
-    # Strip space on each line
-    paragraph = '\n'.join(line.strip() for line in paragraph.splitlines())
     # Strip surronding newlines
     paragraph = paragraph.strip()
 
