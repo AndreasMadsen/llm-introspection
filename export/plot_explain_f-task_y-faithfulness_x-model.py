@@ -31,7 +31,7 @@ parser.add_argument('--format',
                     action='store',
                     default='paper',
                     type=str,
-                    choices=['paper', 'keynote', 'appendix'],
+                    choices=['paper', 'website'],
                     help='The dimentions and format of the plot.')
 parser.add_argument('--model-names',
                     nargs='+',
@@ -129,6 +129,8 @@ if __name__ == "__main__":
             p9.facet_grid('args.dataset ~ args.task', labeller=annotation.explain_task.labeller) + # type: ignore
             p9.scale_y_continuous(
                 name='Faithfulness',
+                labels=lambda ticks: [f'{tick:.0%}' for tick in ticks],
+                breaks=[0, 0.5, 1],
                 limits=[0, 1]
             ) +
             p9.scale_x_continuous(
@@ -152,6 +154,20 @@ if __name__ == "__main__":
                 legend_box_margin=0,
                 legend_position='bottom',
                 legend_background=p9.element_rect(fill='#F2F2F2')
+            )
+        if args.format == 'website':
+            size = (3.03209, 2)
+            p += p9.guides(color=p9.guide_legend(ncol=3))
+            p += p9.theme(
+                text=p9.element_text(size=9, fontname='Helvetica'),
+                axis_text_y=p9.element_blank(),
+                axis_ticks_major=p9.element_blank(),
+                axis_title_x=p9.element_blank(),
+                legend_box_margin=0,
+                legend_title=p9.element_blank(),
+                legend_position='bottom',
+                legend_background=p9.element_rect(fill='#F2F2F2'),
+                legend_text=p9.element_text(size=10, fontname='Helvetica'),
             )
         else:
             raise ValueError('unknown format')
