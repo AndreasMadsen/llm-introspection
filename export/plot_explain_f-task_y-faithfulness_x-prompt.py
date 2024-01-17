@@ -74,7 +74,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
     args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('explain_f-task_y-faithfulness_x-model',
+    experiment_id = generate_experiment_id('explain_f-task_y-faithfulness_x-prompt',
         model=args.model_name, system_message=args.system_message,
         dataset=''.join(d[0] for d in args.datasets), split=args.split,
         task=''.join(t[0] for t in args.tasks),
