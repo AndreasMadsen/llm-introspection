@@ -12,7 +12,7 @@ python -m pip install --no-index -U setuptools
 # Download package dependencies
 mkdir -p $HOME/python_wheels
 cd $HOME/python_wheels
-pip download --no-deps 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
+pip download --no-deps 'datasets >= 2.14.6,<2.15.0' 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
 
 # Install project
 cd $HOME/workspace/introspect
@@ -23,7 +23,7 @@ python experiments/download.py --persistent-dir $SCRATCH/introspect
 
 # Check models
 TGI_DIR=$SCRATCH/tgi
-for model_id in 'meta-llama/Llama-2-70b-chat-hf' 'meta-llama/Llama-2-13b-chat-hf' 'meta-llama/Llama-2-7b-chat-hf' 'tiiuae/falcon-40b-instruct' 'tiiuae/falcon-7b-instruct'
+for model_id in 'meta-llama/Llama-2-70b-chat-hf' 'meta-llama/Llama-2-13b-chat-hf' 'meta-llama/Llama-2-7b-chat-hf' 'tiiuae/falcon-40b-instruct' 'tiiuae/falcon-7b-instruct' 'mistralai/Mistral-7B-Instruct-v0.2' 'mistralai/Mistral-7B-Instruct-v0.1'
 do
     if [ ! -d "${TGI_DIR}/tgi-repos/${model_id}" ] ; then
         echo "Model '${model_id}' is missing."

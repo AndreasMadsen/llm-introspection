@@ -7,17 +7,11 @@ import pathlib
 from tqdm import tqdm
 import pandas as pd
 import plotnine as p9
-import numpy as np
 
 from introspect.dataset import datasets
 from introspect.types import DatasetSplits, SystemMessage, TaskCategories
 from introspect.util import generate_experiment_id
-
-def select_target_metric(df):
-    idx, cols = pd.factorize('results.' + df.loc[:, 'target_metric'])
-    return df.assign(
-        metric = df.reindex(cols, axis=1).to_numpy()[np.arange(len(df)), idx]
-    )
+from introspect.plot import annotation
 
 parser = argparse.ArgumentParser(
     description = 'Plots the 0% masking test performance given different training masking ratios'
@@ -58,22 +52,16 @@ parser.add_argument('--dataset',
                     help='The dataset to fine-tune on')
 parser.add_argument('--split',
                     action='store',
-                    default=DatasetSplits.TRAIN,
+                    default=DatasetSplits.TEST,
                     type=DatasetSplits,
                     choices=list(DatasetSplits),
                     help='The dataset split to evaluate on')
 parser.add_argument('--task',
                     action='store',
-                    default=TaskCategories.ANSWERABLE,
+                    default=TaskCategories.CLASSIFY,
                     type=TaskCategories,
                     choices=list(TaskCategories),
                     help='Which task to run')
-parser.add_argument('--task-config',
-                    action='store',
-                    nargs='+',
-                    default=[],
-                    type=str,
-                    help='List of configuration options for selected task')
 parser.add_argument('--seed',
                     action='store',
                     default=0,
@@ -82,12 +70,12 @@ parser.add_argument('--seed',
 
 if __name__ == "__main__":
     pd.set_option('display.max_rows', None)
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
 
-    experiment_id = generate_experiment_id('introspect',
+    experiment_id = generate_experiment_id('classify_classes',
         model=args.model_name, system_message=args.system_message,
         dataset=args.dataset, split=args.split,
-        task=args.task, task_config=args.task_config,
+        task=args.task,
         seed=args.seed)
 
     if args.stage in ['both', 'preprocess']:
@@ -106,9 +94,14 @@ if __name__ == "__main__":
                data['args']['system_message'] == args.system_message and \
                data['args']['dataset'] == args.dataset and \
                data['args']['split'] == args.split and \
-               data['args']['task'] == args.task and \
-               data['args']['task_config'] == args.task_config:
-                data['args']['task_config'] = '-'.join(data['args']['task_config'])
+               data['args']['task'] == args.task:
+                data['plot'] = { 'redact': 'redact', 'persona': 'no-persona' }
+                if 'c-no-redacted' in data['args']['task_config']:
+                    data['plot']['redact'] = 'no-redact'
+                if 'c-persona-human' in data['args']['task_config']:
+                    data['plot']['persona'] = 'human-persona'
+                elif 'c-persona-you' in data['args']['task_config']:
+                     data['plot']['persona'] = 'you-persona'
                 results.append(data)
 
         # Convert results into a flat DataFrame
@@ -121,24 +114,29 @@ if __name__ == "__main__":
 
     if args.stage in ['both', 'plot']:
         df = pd.read_parquet((args.persistent_dir / 'pandas' / experiment_id).with_suffix('.parquet'))
-        df = df.groupby([
-            'args.model_name', 'args.system_message',
-            'args.task', 'args.task_config',
-            'args.dataset', 'args.split',
-            'args.seed',
-            'results.answer.ability', 'results.answer.sentiment'],
-            as_index=False
-        ).agg({
-            'results.answer.count': 'sum'
-        })
+
+        print(df.loc[:, ['plot.persona', 'plot.redact', 'results.answer.predict', 'results.answer.count', 'results.answer.label']])
 
         p = (
-            p9.ggplot(df, p9.aes(x='results.answer.sentiment')) +
-            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.ability'), stat="identity")
+            p9.ggplot(df, p9.aes(x='results.answer.predict')) +
+            p9.geom_bar(p9.aes(y='results.answer.count', fill='results.answer.label'), stat="identity") +
+            p9.facet_grid('plot.persona ~ plot.redact',
+                          labeller=(annotation.persona | annotation.redact).labeller) + # type: ignore
+            p9.scale_y_continuous(
+                name='Count'
+            ) +
+            p9.scale_x_discrete(
+                name='Predicted sentiment'
+            ) +
+            p9.scale_fill_discrete(
+                 aesthetics=["fill"],
+                 name='True sentiment'
+            ) +
+            p9.ggtitle(f'{args.dataset} - Classify')
         )
 
         if args.format == 'paper':
-            size = (3.03209, 3.5)
+            size = (3.03209, 4.5)
             p += p9.guides(fill=p9.guide_legend(ncol=2))
             p += p9.theme(
                 text=p9.element_text(size=10, fontname='Times New Roman'),

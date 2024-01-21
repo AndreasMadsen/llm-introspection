@@ -53,6 +53,7 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
         all_table_types: dict[str, Type[str]|Type[bool]|Type[int]|Type[float]] = dict()
 
         for property_name, type_def in inspect.get_annotations(self._result_type).items():
+
             if typing.get_origin(type_def) is not typing.Required:
                 raise ValueError(f'The TypedDict\'s {property_name} type must be Required')
 
@@ -66,6 +67,10 @@ class ResultDatabase(AbstractDatabase, Generic[TaskResultType]):
                     raise ValueError(f'The TypedDict\'s {property_name} type must be "Type | None"')
 
                 type_def = type_options[1] if type_options[0] is None else type_options[0]
+
+            # Unpack TypeVar
+            if isinstance(type_def, typing.TypeVar):
+                type_def = type_def.__bound__
 
             # Get primitive type
             all_table_types[property_name] = _simplify_type(type_def)

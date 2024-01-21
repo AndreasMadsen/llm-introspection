@@ -1,23 +1,20 @@
 import pathlib
 from functools import cached_property
 from abc import ABCMeta, abstractmethod
-from typing import Any, TypeVar, Iterable, Generic, Mapping
-from collections.abc import Iterable
+from typing import Any, TypeVar, Sequence, Generic
 
 import datasets
 
 from ..types import DatasetCategories, DatasetSplits, Observation
 
 ObservationType = TypeVar('ObservationType', bound=Observation)
-LabelNamesType = TypeVar('LabelNamesType', bound=str)
 
-class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMeta):
+class AbstractDataset(Generic[ObservationType], metaclass=ABCMeta):
     name: str
     category: DatasetCategories
 
     _persistent_dir: pathlib.Path
-    _target_name: str = 'label'
-    _label_def: datasets.ClassLabel
+    _features: datasets.Features
 
     _split_train: str
     _split_valid: str
@@ -34,24 +31,8 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         self._persistent_dir = persistent_dir
         self._seed = seed
 
-        if not isinstance(self.info.features, dict):
-            raise ValueError('this dataset does not havce features defined')
-
-        if self._target_name not in self.info.features:
-            raise ValueError(f'the dataset._target_name ("{self._target_name}") feature does not exists')
-
-        self._label_def = self.info.features[self._target_name]
-
-    @cached_property
-    @abstractmethod
-    def label_str2int(self) -> Mapping[LabelNamesType, int]:
-        ...
-
-    @cached_property
-    def label_int2str(self) -> Mapping[int, LabelNamesType]:
-        return {
-            value: name for name, value in self.label_str2int.items()
-        }
+        if not isinstance(self.info.features, datasets.Features):
+            raise ValueError('this dataset does not have features defined')
 
     @abstractmethod
     def _builder(self, cache_dir: pathlib.Path) -> datasets.DatasetBuilder:
@@ -71,23 +52,14 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         """
         return self._builder_cache.info
 
-    @property
-    def num_classes(self) -> int:
-        """Number of classes in the dataset
-        """
-        if self.info.features is None:
-            raise NotImplementedError('dataset does not implement features')
-
-        return self.info.features[self._target_name].num_classes
-
     def download(self):
         """Downloads dataset
         """
         self._builder_cache.download_and_prepare()
 
-    def _process_dataset(self, dataset: datasets.Dataset) -> Iterable[ObservationType]:
+    def _process_dataset(self, dataset: datasets.Dataset) -> Sequence[ObservationType]:
         return dataset \
-            .map(self._restructure, with_indices=True, remove_columns=dataset.column_names) \
+            .map(self._restructure, with_indices=True, features=self._features, remove_columns=dataset.column_names) \
             .shuffle(seed=self._seed) # type: ignore
 
     def num_examples(self, split: DatasetSplits):
@@ -102,7 +74,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
             case _:
                 raise ValueError(f'split {split} is not supported')
 
-    def split(self, split: DatasetSplits) -> Iterable[ObservationType]:
+    def split(self, split: DatasetSplits) -> Sequence[ObservationType]:
         """Get observations for a given split"""
         match split:
             case 'train':
@@ -114,7 +86,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
             case _:
                 raise ValueError(f'split {split} is not supported')
 
-    def train(self) -> Iterable[ObservationType]:
+    def train(self) -> Sequence[ObservationType]:
         """Get training dataset
         """
         return self._process_dataset(self._datasets[0])
@@ -125,7 +97,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         """
         return self._datasets[0].num_rows
 
-    def valid(self) -> Iterable[ObservationType]:
+    def valid(self) -> Sequence[ObservationType]:
         """Validation dataset
         """
         return self._process_dataset(self._datasets[1])
@@ -135,7 +107,7 @@ class AbstractDataset(Generic[ObservationType, LabelNamesType], metaclass=ABCMet
         """
         return self._datasets[1].num_rows
 
-    def test(self) -> Iterable[ObservationType]:
+    def test(self) -> Sequence[ObservationType]:
         """Test dataset
         """
         return self._process_dataset(self._datasets[2])

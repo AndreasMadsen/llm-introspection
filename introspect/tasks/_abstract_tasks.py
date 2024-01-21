@@ -1,6 +1,7 @@
 
 from abc import ABCMeta, abstractmethod
-from typing import TypeVar, Generic, Sequence
+from typing import TypeVar, Generic, Sequence, Literal
+from functools import cached_property
 
 from introspect.dataset import AbstractDataset
 from introspect.model import AbstractModel
@@ -19,12 +20,14 @@ ObservationType = TypeVar('ObservationType', bound=Observation)
 TaskResultType = TypeVar('TaskResultType', ClassifyResult, IntrospectResult, FaithfulResult)
 PartialTaskResultType = TypeVar('PartialTaskResultType', PartialClassifyResult, PartialIntrospectResult, PartialFaithfulResult)
 
+XstrType = TypeVar('XstrType', bound=str)
+YstrType = TypeVar('YstrType', bound=str)
+
 class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, TaskResultType], metaclass=ABCMeta):
-    _dataset: DatasetType
     dataset_category: DatasetCategories
     task_category: TaskCategories
 
-    def __init__(self, dataset: DatasetType, model: AbstractModel, config: Sequence[str] = []) -> None:
+    def __init__(self, model: AbstractModel, config: Sequence[str] = []) -> None:
         """Enables running a specific task.
 
         Each task is categorized by it's generalized dataset (e.g. SentimentDataset) and
@@ -37,21 +40,25 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
         parallel queries.
 
         Args:
-            dataset (AbstractDataset): A dataset instance,
-                must be a subclass of the selected dataset category.
             model (AbstractModel): The model which is used to query prompts.
             config (Sequence[str], optional): Additional configurations. These options will
                 make minor modifications to the prompts. Defaults to [].
         """
-        self._dataset = dataset
         self._model = model
         self._config = set(config)
+
+    @cached_property
+    def _mask_special_token(self) -> Literal['[REMOVED]', '[REDACTED]']:
+        return self._ifelse_enabled('m-removed', '[REMOVED]', '[REDACTED]')
 
     def _is_enabled(self, option: str) -> bool:
         return option in self._config
 
-    def _if_enabled(self, option: str, content: str) -> str:
+    def _if_enabled(self, option: str, content: XstrType) -> XstrType|Literal['']:
         return content if self._is_enabled(option) else ''
+
+    def _ifelse_enabled(self, option: str, true: XstrType, false: YstrType) -> XstrType|YstrType:
+        return true if self._is_enabled(option) else false
 
     @abstractmethod
     def make_aggregator(self) -> AbstractAggregator:
@@ -91,7 +98,7 @@ class AbstractTask(Generic[DatasetType, ObservationType, PartialTaskResultType, 
         capture = RequestCapture(self._model)
         partial_result = await self._task(observation, capture)
         return self._make_task_result(partial_result, {
-            'label': self._dataset.label_int2str[observation['label']],
+            'label': observation['label'],
             'duration': capture.duration
         })
 

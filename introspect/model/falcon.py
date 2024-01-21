@@ -1,6 +1,5 @@
 
 from ._abstract_model import AbstractModel
-from ..types import ChatHistory
 
 class FalconModel(AbstractModel):
     _name = 'Falcon'
@@ -10,9 +9,10 @@ class FalconModel(AbstractModel):
         "repetition_penalty": 1.2,
         "top_k": 50,
         "max_new_tokens": 1024,
-        "stop": ["User:", "Falcon:"],
+        "stop": ["User:", "Falcon:", '</s>'],
         "seed": 0
     }
+    _support_system_message = True
     _default_system_message = (
         "The following is a conversation between a highly knowledgeable and"
         " intelligent AI assistant, called Falcon, and a human user, called"

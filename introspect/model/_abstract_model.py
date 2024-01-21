@@ -7,7 +7,8 @@ from ..client import AbstractClient
 class AbstractModel(metaclass=ABCMeta):
     _name: str
     _default_config: GenerateConfig
-    _default_system_message: str
+    _default_system_message: str|None = None
+    _support_system_message: bool = False
     _debug: bool
 
     _config: GenerateConfig
@@ -38,6 +39,9 @@ class AbstractModel(metaclass=ABCMeta):
                 self._system_message = None
             case _:
                 self._system_message = system_message
+
+        if not self._support_system_message and self._system_message is not None:
+            raise ValueError(f'The {self._name} model does not support a system message')
 
         self._config = self._default_config if config is None else {**self._default_config, **config}
         self._debug = debug

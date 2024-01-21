@@ -3,11 +3,11 @@ from typing import TypedDict, Literal, Required, NotRequired
 
 import aiohttp
 import asyncio
+import traceback
 
-from ..types import GenerateConfig, GenerateError
-from ._abstract_client import AbstractClient
-from text_generation.errors import parse_error, ValidationError
-from text_generation.types import Response
+from ..types import GenerateConfig, GenerateError, GenerateResponse
+from ._abstract_client import AbstractClient, RetryRequest
+from text_generation.errors import parse_error, ValidationError, GenerationError
 
 
 class TGIInfo(TypedDict):
@@ -102,7 +102,7 @@ class TGIClient(AbstractClient[TGIInfo]):
 
                 return await response.json()
 
-    async def _generate(self, prompt, config) -> str:
+    async def _generate(self, prompt, config) -> GenerateResponse:
         payload: TGIGeneratePayload = {
             'inputs': prompt,
             'parameters': { **config },
@@ -110,14 +110,27 @@ class TGIClient(AbstractClient[TGIInfo]):
         }
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5 * 60)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(self._connect_timeout_sec)) as session:
                 async with session.post(self._base_url, json=payload) as response:
                     answer = await response.json()
 
                     if response.status != 200:
                         raise parse_error(response.status, answer)
 
-                    return answer[0]['generated_text']
+                    generated_text = answer[0]['generated_text']
+                    # remote stop tokens
+                    for stop_token in config['stop']:
+                        if generated_text.endswith(stop_token):
+                            generated_text = generated_text.removesuffix(stop_token)
+                            break
 
-        except (ValidationError, asyncio.TimeoutError) as err:
+                    return {
+                        'response': generated_text,
+                        'duration': float(response.headers['X-Inference-Time'])
+                    }
+
+        except ValidationError as err:
             raise GenerateError('LLM generate failed') from err
+        except (asyncio.TimeoutError, aiohttp.ClientOSError, aiohttp.ServerDisconnectedError, GenerationError) as err:
+            traceback.print_exception(err)
+            raise RetryRequest('Connection error') from err

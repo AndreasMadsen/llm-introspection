@@ -15,7 +15,7 @@ from introspect.client import clients
 from introspect.dataset import datasets
 from introspect.model import models
 from introspect.tasks import tasks
-from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type
+from introspect.util import AsyncMap, generate_experiment_id, default_model_id, default_model_type, default_system_message
 from introspect.database import result_databases, GenerationCache
 from introspect.types import TaskCategories, DatasetSplits, SystemMessage, GenerateError
 
@@ -32,7 +32,7 @@ parser.add_argument('--endpoint',
                     help='The TGI endpoint for this model')
 parser.add_argument('--client',
                     action='store',
-                    default='TGI',
+                    default='Offline' if 'RUN_OFFLINE' in os.environ else 'TGI',
                     type=str,
                     choices=clients.keys(),
                     help='Which client to use, either TGI or VLLM')
@@ -54,7 +54,7 @@ parser.add_argument('--model-id',
                     help='Model id')
 parser.add_argument('--system-message',
                     action='store',
-                    default=SystemMessage.DEFAULT,
+                    default=None,
                     type=SystemMessage,
                     choices=list(SystemMessage),
                     help='Use a system message')
@@ -78,7 +78,7 @@ parser.add_argument('--task',
                     help='Which task to run')
 parser.add_argument('--task-config',
                     action='store',
-                    nargs='+',
+                    nargs='*',
                     default=[],
                     type=str,
                     help='List of configuration options for selected task')
@@ -89,7 +89,7 @@ parser.add_argument('--seed',
                     help='Seed used for generation')
 parser.add_argument('--max-workers',
                     action='store',
-                    default=100,
+                    default=50,
                     type=int,
                     help='Max number of parallel async tasks')
 parser.add_argument('--debug',
@@ -97,16 +97,17 @@ parser.add_argument('--debug',
                     default=False,
                     type=bool,
                     help='Enable debug mode')
-parser.add_argument('--clean-database',
-                    action=argparse.BooleanOptionalAction,
-                    default=True,
-                    type=bool,
-                    help='Remove result database')
 parser.add_argument('--clean-cache',
                     action=argparse.BooleanOptionalAction,
                     default=False,
                     type=bool,
                     help='Remove cache')
+parser.add_argument('--dry',
+                    action=argparse.BooleanOptionalAction,
+                    default=False,
+                    type=bool,
+                    help='Don\'t modify files')
+
 
 async def main():
     durations = {}
@@ -115,6 +116,7 @@ async def main():
     args = parser.parse_args()
     args.model_id = default_model_id(args)
     args.model_type = default_model_type(args)
+    args.system_message = default_system_message(args)
     experiment_id = generate_experiment_id(
         'analysis',
         model=args.model_name, system_message=args.system_message,
@@ -139,7 +141,6 @@ async def main():
     print(f' - Seed: {args.seed}')
     print('')
     print(f' - Debug: {args.debug}')
-    print(f' - Clean database: {args.clean_database}')
     print(f' - Clean cache: {args.clean_cache}')
     print('')
 
@@ -151,29 +152,30 @@ async def main():
     database = result_databases[args.task](
         (args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.sqlite')
     )
-    cache = GenerationCache(experiment_id, cache_dir=args.persistent_dir / 'database', deps=[
-        generate_experiment_id('analysis',
-                               model=args.model_name, system_message=args.system_message,
-                               dataset=args.dataset, split=args.split,
-                               task='classify', task_config=classify_task_config,
-                               seed=args.seed)
-
-        for classify_task_config in (
-            tuple() if args.task == TaskCategories.CLASSIFY else (['no-maybe-redacted'], [])
+    cache_deps = []
+    if args.task != TaskCategories.CLASSIFY:
+        cache_deps.append(
+            generate_experiment_id('analysis',
+                                model=args.model_name, system_message=args.system_message,
+                                dataset=args.dataset, split=args.split,
+                                task='classify', task_config=list(set(args.task_config) & set([
+                                    'm-removed', 'c-no-redacted', 'c-persona-human', 'c-persona-you'
+                                ])),
+                                seed=args.seed)
         )
-    ])
+    cache = GenerationCache(experiment_id, cache_dir=args.persistent_dir / 'database', deps=cache_deps)
 
     # setup task
     client = clients[args.client](args.endpoint, cache)
     dataset = datasets[args.dataset](persistent_dir=args.persistent_dir, seed=args.seed)
     model = models[args.model_type](client, system_message=args.system_message, debug=args.debug, config={'seed': args.seed})
-    task = tasks[dataset.category, args.task](dataset, model, config=args.task_config)
+    task = tasks[dataset.category, args.task](model, config=args.task_config)
     durations['setup'] = timer() - setup_time_start
 
     # cleanup old database
-    if args.clean_database:
+    if not args.dry:
         database.remove()
-    if args.clean_cache:
+    if args.clean_cache and not args.dry:
         cache.remove()
 
     # connect to inference server
@@ -190,7 +192,8 @@ async def main():
                 answer = await task(obs)
             except GenerateError as error:
                 answer = error
-            await db.put(args.split, obs['idx'], answer)
+            if not args.dry:
+                await db.put(args.split, obs['idx'], answer)
             return answer
 
         # process train split
@@ -210,12 +213,13 @@ async def main():
         durations['eval'] = aggregator.total_duration
 
     # save results
-    with open((args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.json'), 'w') as fp:
-        json.dump({
-            'args': { name: value for name, value in vars(args).items() if name != 'persistent_dir' },
-            'results': results,
-            'durations': durations
-        }, fp)
+    if not args.dry:
+        with open((args.persistent_dir / 'results' / 'analysis' / experiment_id).with_suffix('.json'), 'w') as fp:
+            json.dump({
+                'args': { name: value for name, value in vars(args).items() if name != 'persistent_dir' },
+                'results': results,
+                'durations': durations
+            }, fp)
 
 if __name__ == '__main__':
     asyncio.run(main())
