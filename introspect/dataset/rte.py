@@ -27,7 +27,7 @@ class RTEDataset(EntailmentDataset):
 
     def _restructure(self, obs, idx) -> EntailmentObservation:
         return {
-            'statement': obs['sentence2'],
+            'hypothesis': obs['sentence2'],
             'paragraph': obs['sentence1'],
             'label': self._label_int2str[obs['label']],
             'idx': idx

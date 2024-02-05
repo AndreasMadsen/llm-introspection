@@ -31,7 +31,7 @@ class EntailmentDataset(AbstractDataset[EntailmentObservation]):
     category = DatasetCategories.ENTAILMENT
 
     _features = datasets.Features({
-        "statement": datasets.Value("string"),
+        "hypothesis": datasets.Value("string"),
         "paragraph": datasets.Value("string"),
         "label": datasets.Value("string"),
         "idx": datasets.Value("int64"),
