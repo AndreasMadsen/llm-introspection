@@ -3,7 +3,7 @@ from ._categories import MultiChoiceDataset
 from ..types import MultiChoiceObservation
 from .local import LocalBabiDataset
 
-class GenraizedBabiDataset(MultiChoiceDataset):
+class GenralizedBabiDataset(MultiChoiceDataset):
     _babi_config: str
 
     _split_train = 'train[:80%]'
@@ -22,14 +22,14 @@ class GenraizedBabiDataset(MultiChoiceDataset):
             'idx': idx
         }
 
-class Babi1Dataset(GenraizedBabiDataset):
+class Babi1Dataset(GenralizedBabiDataset):
     _babi_config = 'en-10k-qa1'
     name = 'bAbI-1'
 
-class Babi2Dataset(GenraizedBabiDataset):
+class Babi2Dataset(GenralizedBabiDataset):
     _babi_config = 'en-10k-qa2'
     name = 'bAbI-2'
 
-class Babi3Dataset(GenraizedBabiDataset):
+class Babi3Dataset(GenralizedBabiDataset):
     _babi_config = 'en-10k-qa3'
     name = 'bAbI-3'
