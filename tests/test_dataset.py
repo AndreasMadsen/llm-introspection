@@ -78,5 +78,5 @@ def test_dataset_entailment(info):
     assert dataset.test_num_examples == dataset.num_examples(DatasetSplits.TEST) == info.test
 
     for example in dataset.train():
-        assert example.keys() == { 'statement', 'paragraph', 'label', 'idx' }
+        assert example.keys() == { 'hypothesis', 'paragraph', 'label', 'idx' }
         break
