@@ -84,7 +84,7 @@ class VLLMError(Exception):
     pass
 
 class VLLMClient(AbstractClient[VLLMInfo]):
-    """VLLM Client.
+    """This client connects to a vLLM server
 
     Although this client works, with the `python -m vllm.entrypoints.api_server` endpoint,
     the throughput is about 3x slower compared to TGI. The generation quality is also much

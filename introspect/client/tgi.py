@@ -86,6 +86,11 @@ class TGIGeneratePayload(TypedDict):
     stream: Literal[False]
 
 class TGIClient(AbstractClient[TGIInfo]):
+    """This client connects to a TGI server
+
+    TGI is a service by huggingface and is documented here:
+    https://huggingface.co/docs/text-generation-inference/en/index
+    """
     async def _try_connect(self) -> bool:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
             try:
@@ -118,7 +123,7 @@ class TGIClient(AbstractClient[TGIInfo]):
                         raise parse_error(response.status, answer)
 
                     generated_text = answer[0]['generated_text']
-                    # remote stop tokens
+                    # remove stop tokens
                     for stop_token in config['stop']:
                         if generated_text.endswith(stop_token):
                             generated_text = generated_text.removesuffix(stop_token)

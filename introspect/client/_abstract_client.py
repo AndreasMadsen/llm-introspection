@@ -19,12 +19,16 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
                  record=False) -> None:
         """Create a client that can be used to run a generative inference
 
+        Note that the client is backed by a cache. This cache is checked for the prompt first
+        and only if there is no entry in the cache, does the request a computed response. This
+        computed response is then cached afterwards.
+
         Args:
             base_url (str): The url to the endpoint. For example: "http://localhost:8080"
             cache (GenerationCache | None, optional): Cache where generation outputs are stored. Defaults to None.
             connect_timeout_sec (int, optional): How long to wait for the server to start. Defaults to 30*60.
             max_reconnects (int, optional): The number of times the connection can be lost. Default to 3.
-            record (bool, optional). Record inputs and outputs. Default False.
+            record (bool, optional). Record inputs and outputs, this is only useful for testing or debugging. Default False.
         """
         self._base_url = base_url
         self._connect_timeout_sec = connect_timeout_sec
@@ -38,6 +42,14 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
 
     @property
     def record(self) -> Iterable[tuple[str, GenerateResponse]]:
+        """If recording is enabled, this returns a list of prompts and responses
+
+        Raises:
+            ValueError: raises an error if recording is disabled
+
+        Returns:
+            Iterable[tuple[str, GenerateResponse]]: Iterable of (prompt, response).
+        """
         if not self._record_enabled:
             raise ValueError('recording is not enabled')
 
@@ -45,6 +57,14 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
 
     @property
     def prompt_record(self) -> Iterable[str]:
+        """If recording is enabled, this returns a list of prompts queried
+
+        Raises:
+            ValueError: raises an error if recording is disabled
+
+        Returns:
+            Iterable[str]: Iterable of prompts
+        """
         if not self._record_enabled:
             raise ValueError('recording is not enabled')
 
@@ -52,6 +72,14 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
 
     @property
     def response_record(self) -> Iterable[GenerateResponse]:
+        """If recording is enabled, this returns a list of responses
+
+        Raises:
+            ValueError: raises an error if recording is disabled
+
+        Returns:
+            Iterable[str]: Iterable of responses
+        """
         if not self._record_enabled:
             raise ValueError('recording is not enabled')
 
@@ -80,6 +108,18 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         ...
 
     async def _await_connection(self, presleep=0):
+        """This future returns when a connection is establed.
+
+        The function tries to connect to the server several times, until
+        `_connect_timeout_sec` has expired. Each connnection attempt is
+        handled by `_try_connect.
+
+        Args:
+            presleep (int, optional): Time to sleep before first connection attempt. Defaults to 0.
+
+        Raises:
+            IOError: raises if the allowed time expired.
+        """
         start_time = time.time()
 
         if presleep > 0:
@@ -142,6 +182,7 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
             'repetition_penalty': config.get('repetition_penalty', 1)
         }
 
+        # Query a resonse and manage the record if recording is enabled
         response = await self._read_cache_or_generate(prompt, config_with_defaults)
         if self._record_enabled:
             self._record.append((prompt, response))
@@ -153,9 +194,8 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         if cached_answer is not None and not isinstance(cached_answer, GenerateError):
             return cached_answer
 
-        # No valid response in cache (might not exists, might be an error).
+        # No valid response in cache (might not exists, might be an previous error).
         # Attempt to compute response.
-
         if not self._is_connected:
             await self.connect()
 
@@ -163,20 +203,30 @@ class AbstractClient(Generic[InfoType], metaclass=ABCMeta):
         try:
             computed_answer = await self._generate(prompt, config)
         except GenerateError as error:
+            # A GenerateError is often because the prompt is too long for the model.
+            # These are are errors that do not indicate an issue with the server and
+            # should not crash the client.
             computed_answer: GenerateResponse|GenerateError = error
         except RetryRequest as error:
-            # The _generate failed and requested a reconnect.
+            # A RetryRequest indicates that the server crashed, maybe due to a OOM bug.
+            # Such errors are handled by a server wrapper, which will restart the server.
+            # The RetryRequest request indicates that the server is disconnected, and we
+            # need to wait until the server has restarted.
             self._handle_disconnect()
+            # Retry this function. This will wait until the server has restarted.
             return await self.generate(prompt, config)
 
         match computed_answer:
             case OfflineError():
+                # In case of an OfflineError, relay the cached error if such an error exist.
                 raise computed_answer from cached_answer
 
             case GenerateError():
+                # Save a GenerateError to the cache, such it can be relayed if an Offlineclient is used.
                 await self._put_cache(prompt, computed_answer)
                 raise computed_answer
 
             case _:
+                # There were no error, update the cache and return the regular response
                 await self._put_cache(prompt, computed_answer)
                 return computed_answer
