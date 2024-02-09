@@ -130,7 +130,6 @@ if __name__ == "__main__":
             p9.scale_y_continuous(
                 name='Faithfulness',
                 labels=lambda ticks: [f'{tick:.0%}' for tick in ticks],
-                breaks=[0, 0.5, 1],
                 limits=[0, 1]
             ) +
             p9.scale_x_continuous(
@@ -155,7 +154,7 @@ if __name__ == "__main__":
                 legend_position='bottom',
                 legend_background=p9.element_rect(fill='#F2F2F2')
             )
-        if args.format == 'website':
+        elif args.format == 'website':
             size = (3.03209, 2)
             p += p9.guides(color=p9.guide_legend(ncol=3))
             p += p9.theme(
