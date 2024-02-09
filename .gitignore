@@ -5,6 +5,8 @@
 /plots
 /pandas
 /figure
+/database-backup
+/results-backup
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
