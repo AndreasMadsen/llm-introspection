@@ -373,7 +373,7 @@ class EntailmentImportanceTask(FaithfulTask[EntailmentDataset, EntailmentObserva
 
         redacted_entailment_prompt, redacted_entailment_answer, redacted_entailment = None, None, None
         if redacted is not None:
-            redacted_entailment_prompt, redacted_entailment_answer = await self._query_entailment(statement, redacted, generate_text)
+            redacted_entailment_prompt, redacted_entailment_answer = await self._query_entailment(hypothesis, redacted, generate_text)
             redacted_entailment = self._extract_entailment(redacted_entailment_answer)
 
         faithful: bool | None = None
