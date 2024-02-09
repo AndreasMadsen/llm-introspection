@@ -137,6 +137,7 @@ if __name__ == "__main__":
             p9.facet_grid('args.dataset ~ args.task', scales='free_x', labeller=annotation.explain_task.labeller) + # type: ignore
             p9.scale_y_continuous(
                 name='Faithfulness',
+                labels=lambda ticks: [f'{tick:.0%}' for tick in ticks],
                 limits=[0, 1]
             ) +
             p9.scale_x_discrete(

@@ -126,6 +126,7 @@ if __name__ == "__main__":
             p9.facet_wrap('args.dataset', nrow=1) +
             p9.scale_y_continuous(
                 name='Accuracy',
+                labels=lambda ticks: [f'{tick:.0%}' for tick in ticks],
                 limits=[0, 1]
             ) +
             p9.scale_x_continuous(
