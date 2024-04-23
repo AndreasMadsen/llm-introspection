@@ -23,7 +23,7 @@ class IMDBDataset(SentimentDataset):
         }
 
     def _builder(self, cache_dir):
-       return datasets.load_dataset_builder('imdb', cache_dir=str(cache_dir))
+       return datasets.load_dataset_builder('stanfordnlp/imdb', 'plain_text', cache_dir=str(cache_dir))
 
     def _restructure(self, obs, idx) -> SentimentObservation:
         return {
