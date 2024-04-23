@@ -30,10 +30,10 @@ FaithfulMultiChoiceResult: TypeAlias = FaithfulResult[str, str]
 class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, PartialTaskResultType, TaskResultType]):
     dataset_category = DatasetCategories.MULTI_CHOICE
 
-    def _make_answer_choices(self, choices: list[str]):
+    def _make_answer_choices(self, choices: list[str], join_word='or'):
         choices_prefixed = [f'{chr(ord("a") + choice_i)}) "{choice}"' for choice_i, choice in enumerate(choices)]
         options_string = ', '.join(choices_prefixed[:-1])
-        options_string += f', or {choices_prefixed[-1]}'
+        options_string += f', {join_word} {choices_prefixed[-1]}'
         return options_string
 
     def _make_alternative_choice(self, choices: list[str], choice: str|None) -> None|str:
@@ -45,6 +45,9 @@ class MultiChoiceTask(AbstractTask[MultiChoiceDataset, MultiChoiceObservation, P
         choice_idx = choices.index(choice)
         alternative_choice_idx = (choice_idx + 1) % len(choices)
         return choices[alternative_choice_idx]
+
+    def _all_alternative_choices(self, choices: list[str], choice: str) -> list[str]:
+        return [val for val in choices if val != choice]
 
     async def _query_choice(
         self, question: str, choices: list[str], paragraph: str, generate_text: RequestCapture
@@ -210,13 +213,25 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
         correct = self._process_is_correct(observation, choice)
 
         alternative_choice = self._make_alternative_choice(choices, observation['label'])
+
         counterfactual_prompt = ''
-        if self._is_enabled('e-persona-you'):
-            counterfactual_prompt += f'Edit the following paragraph such you would answer the question "{question}" with "{alternative_choice}".'
-        elif self._is_enabled('e-persona-human'):
-            counterfactual_prompt += f'Edit the following paragraph such a human would answer the question "{question}" with "{alternative_choice}".'
+        if self._is_enabled('e-implcit-target'):
+            all_choices_str = self._make_answer_choices(choices, join_word='and')
+
+            if self._is_enabled('e-persona-you'):
+                counterfactual_prompt += f'Edit the following paragraph such you would answer the question "{question}" differently from how it should currently be answered.'
+            elif self._is_enabled('e-persona-human'):
+                counterfactual_prompt += f'Edit the following paragraph such a human would answer the question "{question}" differently from how it should currently be answered.'
+            else:
+                counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" differently from how it should currently be answered.'
+            counterfactual_prompt += f' The possible answer options, including the current answer, are {all_choices_str}.'
         else:
-            counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" is "{alternative_choice}".'
+            if self._is_enabled('e-persona-you'):
+                counterfactual_prompt += f'Edit the following paragraph such you would answer the question "{question}" with "{alternative_choice}".'
+            elif self._is_enabled('e-persona-human'):
+                counterfactual_prompt += f'Edit the following paragraph such a human would answer the question "{question}" with "{alternative_choice}".'
+            else:
+                counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" is "{alternative_choice}".'
 
         counterfactual_prompt += (
             f' Make as few edits as possible.'
@@ -240,7 +255,10 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
 
         faithful: bool | None = None
         if counterfactual_choice is not None:
-            faithful = counterfactual_choice == alternative_choice
+            if self._is_enabled('e-implcit-target'):
+                faithful = counterfactual_choice in self._all_alternative_choices(choices, observation['label'])
+            else:
+                faithful = counterfactual_choice == alternative_choice
 
         return {
             'debug': f'Question: {question}.\nOptions: {choices}\nAlternative: {alternative_choice}\nParagraph: {paragraph}',
