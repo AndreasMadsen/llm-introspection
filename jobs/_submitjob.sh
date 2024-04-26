@@ -82,6 +82,10 @@ function submitjob {
             echo -e "\e[31mCould not submit ${experiment_id} with walltime '${walltime}', error ^^^${jobid}\e[0m" >&2
             return 1
         fi
+
+        if [ ! -z $RUN_ONE ]; then
+            exit 0;
+        fi
     else
         echo -e "\e[34mskipping ${experiment_id}\e[0m" >&2
     fi

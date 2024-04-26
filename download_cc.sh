@@ -2,7 +2,8 @@
 set -e
 
 # Create enviroment
-module load gcc/9.3.0 python/3.11 git-lfs/3.3.0 arrow/12.0.1
+module load StdEnv/2023
+module load python/3.11 git-lfs/3.4.0 arrow/14.0.1
 TMP_ENV=$(mktemp -d)
 virtualenv --app-data $SCRATCH/virtualenv --no-download $TMP_ENV/pyenv
 source $TMP_ENV/pyenv/bin/activate
@@ -12,7 +13,7 @@ python -m pip install --no-index -U setuptools
 # Download package dependencies
 mkdir -p $HOME/python_wheels
 cd $HOME/python_wheels
-pip download --no-deps 'datasets >= 2.14.6,<2.15.0' 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
+pip download --no-deps 'tblib >= 2.0.0,<3.0.0' 'plotnine >= 0.12.0' 'mizani<0.10.0,>0.9.0' 'aiosqlite >= 0.19.0,<0.20.0' 'asyncstdlib >= 3.10.0,<4.0.0'
 
 # Install project
 cd $HOME/workspace/introspect

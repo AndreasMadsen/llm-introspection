@@ -16,7 +16,7 @@ if [ -z "${LOGDIR}" ]; then
 fi
 
 # Init
-module load gcc/9.3.0
+module load StdEnv/2023
 nvidia-smi
 
 # TGI config
@@ -34,11 +34,11 @@ model_name=$(python -c 'import argparse; p = argparse.ArgumentParser(); p.add_ar
 MAX_CONCURRENT_REQUESTS=1024  MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 MAX_BATCH_TOTAL_TOKENS=49152 \
     VALIDATION_WORKERS=4 PORT=$tgi_port \
     MODEL_ID="${model_id[$model_name]}" \
-    MAX_RESTARTS=5 bash monitor.sh bash tgi/tgi-server-cc.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
+    MAX_RESTARTS=5 bash monitor.sh bash tgi-sing/tgi-server-cc.sh &> ${LOGDIR}/${SLURM_JOB_NAME}.${SLURM_JOB_ID}.tgi &
 TGI_PID=$!
 
 # Create enviorment
-module load gcc/9.3.0 python/3.11 git-lfs/3.3.0 cuda/11.8.0 cudnn/8.6.0.163 arrow/12.0.1
+module load python/3.11 git-lfs/3.4.0 cuda/12.2 cudnn/8.9.5.29 arrow/14.0.1
 virtualenv --app-data $SCRATCH/virtualenv --no-download $SLURM_TMPDIR/pyenv
 source $SLURM_TMPDIR/pyenv/bin/activate
 python -m pip install --no-index -U pip
