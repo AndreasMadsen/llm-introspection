@@ -110,7 +110,10 @@ class TGIClient(AbstractClient[TGIInfo]):
     async def _generate(self, prompt, config) -> GenerateResponse:
         payload: TGIGeneratePayload = {
             'inputs': prompt,
-            'parameters': { **config },
+            'parameters': {
+                'return_full_text': False,
+                **config
+            },
             'stream': False
         }
 

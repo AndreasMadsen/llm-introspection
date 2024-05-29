@@ -134,7 +134,11 @@ async def main():
     config_str = ', '.join(f'{config_name}: {config_value}' for config_name, config_value in config.items())
     correct_str = 'correct' if evalulation["correct"] else 'not correct'
     faithful_str = 'faithful' if evalulation["faithful"] else 'not faithful'
-    task_str = args.task.capitalize()
+    task_str = ({
+        'counterfactual': 'Counterfactual',
+        'importance': 'Feature attribution',
+        'redacted': 'Redaction'
+    })[args.task]
     session_str = [
         'Session 1: Classification',
         'Session 2: Explanation',
@@ -147,13 +151,9 @@ async def main():
                f' The initial prediction was ``{correct_str}\'\'.'
                f' The interpretability-faithfulness was evaluted to be ``{faithful_str}\'\'.')
 
-    # connect to inference server
     print('Explanation prompt figure:')
     print(f' - Task: {task_str}')
     print(f' - Config: {config_str}')
-    print('')
-    print(f' - Content:')
-    print(evalulation["paragraph"])
     print('')
     print(f' - Label: {obs["label"]}')
     print(f' - Correct: {correct_str}')

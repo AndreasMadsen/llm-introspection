@@ -33,7 +33,7 @@ default_model_path=$TGI_DIR/tgi-repos/$MODEL_ID
 default_num_shard=$(singularity exec -C --nv $TGI_TMP/env/tgi.sif python -c 'import torch; print(torch.cuda.device_count())')
 
 # download model
-rsync --archive --exclude='.git/' --update --delete --verbose --human-readable --whole-file --inplace --no-compress --progress ${MODEL_PATH:-$default_model_path}/ $TGI_TMP/model
+rsync --archive --exclude='.git/' --exclude='*.bin' --update --delete --verbose --human-readable --whole-file --inplace --no-compress --progress ${MODEL_PATH:-$default_model_path}/ $TGI_TMP/model
 
 # run model
 apptainer run -C --nv \

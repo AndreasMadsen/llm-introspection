@@ -20,5 +20,5 @@ echo ""
 nvidia-smi
 
 MAX_CONCURRENT_REQUESTS=1024 MAX_INPUT_LENGTH=2048 MAX_TOTAL_TOKENS=4096 MAX_BATCH_TOTAL_TOKENS=49152 \
-    VALIDATION_WORKERS=4 PORT=$tgi_port MODEL_ID=meta-llama/Llama-2-70b-chat-hf \
-    bash tgi/tgi-server-mila.sh
+    VALIDATION_WORKERS=4 PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4)) \
+    MODEL_PATH=/network/weights/llama.var/llama2/Llama-2-70b-chat-hf/ bash tgi-sing/tgi-server-mila.sh

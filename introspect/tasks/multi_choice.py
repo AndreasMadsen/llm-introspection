@@ -223,7 +223,7 @@ class MultiChoiceCounterfactualTask(FaithfulTask[MultiChoiceDataset, MultiChoice
             elif self._is_enabled('e-persona-human'):
                 counterfactual_prompt += f'Edit the following paragraph such a human would answer the question "{question}" differently from how it should currently be answered.'
             else:
-                counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" differently from how it should currently be answered.'
+                counterfactual_prompt += f'Edit the following paragraph such that the answer to the question "{question}" is different from how it should currently be answered.'
             counterfactual_prompt += f' The possible answer options, including the current answer, are {all_choices_str}.'
         else:
             if self._is_enabled('e-persona-you'):

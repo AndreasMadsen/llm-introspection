@@ -15,9 +15,6 @@ class OfflineClient(AbstractClient[OfflineInfo]):
     This client allows the cache to be used, without connecting to a server.
     This is useful for debugging or refreshing the results.
     """
-    def __init__(self, base_url: str = 'http://127.0.0.0:0', cache: GenerationCache | None = None, connect_timeout_sec: int = 30 * 60) -> None:
-        super().__init__(base_url, cache, connect_timeout_sec)
-
     async def _try_connect(self) -> bool:
         return True
 

@@ -127,7 +127,7 @@ if __name__ == "__main__":
         print(r'\toprule', file=fp)
         print(r'Dataset & Model & Size & \multicolumn{4}{c}{Inference time [hh:mm]} \\', file=fp)
         print(r'\cmidrule(r){4-7}', file=fp)
-        print(r'& & & Classify & Counterfactual & Redacted & Importance \\', file=fp)
+        print(r'& & & Classify & Counterfactual & Redacted & Feature \\', file=fp)
         print(r'\midrule', file=fp)
 
         for dataset_i, dataset in enumerate(args.datasets):

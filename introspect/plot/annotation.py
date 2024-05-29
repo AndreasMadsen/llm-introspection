@@ -75,5 +75,5 @@ model_type = _AnnotationMapping({
 explain_task = _AnnotationMapping({
     'counterfactual': 'Counterfact',
     'redacted': 'Redaction',
-    'importance': 'Importance'
+    'importance': 'Feature'
 })

@@ -16,4 +16,4 @@ echo ""
 
 nvidia-smi
 
-MODEL_ID=meta-llama/Llama-2-7b-chat-hf PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4)) bash tgi/tgi-server-mila.sh
+MODEL_PATH=/network/weights/llama.var/llama2/Llama-2-7b-chat-hf/ PORT=$(expr 10000 + $(echo -n $SLURM_JOBID | tail -c 4)) bash tgi-sing/tgi-server-mila.sh
